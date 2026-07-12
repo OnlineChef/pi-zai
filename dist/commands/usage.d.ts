@@ -1,3 +1,4 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-export declare function registerZaiUsageCommand(pi: ExtensionAPI): void;
+import type { ZaiCommandDeps } from "./deps.ts";
+export declare function registerZaiUsageCommand(pi: ExtensionAPI, deps: ZaiCommandDeps): void;
 //# sourceMappingURL=usage.d.ts.map

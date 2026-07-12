@@ -1,6 +1,8 @@
 import { buildCompactionInstructions, ZAI_COMPACTION_SECTIONS } from "../cache/compaction.js";
 import { canonicalStableSystemPrefix } from "../cache/context-policy.js";
 import { fingerprintToolset } from "../cache/fingerprint.js";
+import { formatProbeSummary, formatRecommendedRetrySettingsJson, formatRetrySettingsAdvice, probeChatEndpoint, readPiRetrySettings, } from "../resilience.js";
+import { inferEndpoint, sessionState } from "../state.js";
 import { describeThinkingPayload, formatCredentialSource, getZaiCompat, requireZaiModel } from "./helpers.js";
 const DOCTOR_THINKING_LEVELS = ["off", "high", "max"];
 function statusIcon(status) {
@@ -14,6 +16,10 @@ function statusIcon(status) {
         case "warn":
             return "warn";
     }
+}
+/** GLM-5.2 is the only Z.AI model exposing reasoning_effort, so it is the only one with a thinkingLevelMap. */
+function isReasoningEffortModel(model) {
+    return model?.compat?.supportsReasoningEffort === true;
 }
 function glm52ThinkingMapOk(model) {
     if (!model?.thinkingLevelMap)
@@ -77,9 +83,43 @@ async function runNetworkProbe(ctx, model) {
         clearTimeout(timeout);
     }
 }
+async function runConnectionStabilityProbe(ctx, model) {
+    const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
+    if (!auth.ok || !auth.apiKey) {
+        return {
+            name: "Connection stability",
+            status: "skip",
+            detail: "No credentials available; skipped chat probe.",
+        };
+    }
+    const probe = await probeChatEndpoint(model.baseUrl, auth.apiKey, 3);
+    const summary = formatProbeSummary({
+        endpoint: inferEndpoint(model.provider, model.baseUrl),
+        ...probe,
+    });
+    if (probe.fail === 0) {
+        return {
+            name: "Connection stability",
+            status: "pass",
+            detail: `${summary} at ${model.baseUrl}`,
+        };
+    }
+    if (probe.ok > 0) {
+        return {
+            name: "Connection stability",
+            status: "warn",
+            detail: `${summary} at ${model.baseUrl}; intermittent drops likely (Connection error). Try /zai-endpoint or Pi retry.provider.maxRetries=2`,
+        };
+    }
+    return {
+        name: "Connection stability",
+        status: "fail",
+        detail: `${summary} at ${model.baseUrl}; endpoint unreachable from this host`,
+    };
+}
 export function registerZaiDoctorCommand(pi, deps) {
     pi.registerCommand("zai-doctor", {
-        description: "Offline Z.AI integration checks with optional network probe",
+        description: "Z.AI integration checks with optional live network probes",
         handler: async (_args, ctx) => {
             const checks = [];
             const config = deps.getConfig(ctx.cwd);
@@ -102,11 +142,11 @@ export function registerZaiDoctorCommand(pi, deps) {
                 detail: codingModel ? "zai/glm-5.2 present" : "zai/glm-5.2 missing from registry",
             });
             checks.push({
-                name: "Platform provider registered",
-                status: deps.isPlatformProviderRegistered(ctx) && platformModel ? "pass" : "fail",
+                name: "Platform provider (optional)",
+                status: deps.isPlatformProviderRegistered(ctx) && platformModel ? "pass" : "skip",
                 detail: platformModel
-                    ? "zai-platform/glm-5.2 registered"
-                    : "zai-platform provider or glm-5.2 model missing",
+                    ? "zai-platform/glm-5.2 present in models.json"
+                    : "Not registered by pi-zai; add zai-platform manually via models.json if needed",
             });
             const credentialProvider = active?.provider ?? "zai";
             const credentialName = (await deps.resolveCredentialSourceName(credentialProvider, ctx)) ??
@@ -120,13 +160,22 @@ export function registerZaiDoctorCommand(pi, deps) {
                     : "No credential configured for active provider",
             });
             const thinkingModel = active ?? codingModel;
-            checks.push({
-                name: "GLM-5.2 thinkingLevelMap",
-                status: glm52ThinkingMapOk(thinkingModel) ? "pass" : "warn",
-                detail: glm52ThinkingMapOk(thinkingModel)
-                    ? "off/high/max exposed; minimal/low/medium/xhigh hidden"
-                    : "Unexpected thinkingLevelMap on active or default model",
-            });
+            if (isReasoningEffortModel(thinkingModel)) {
+                checks.push({
+                    name: "GLM-5.2 thinkingLevelMap",
+                    status: glm52ThinkingMapOk(thinkingModel) ? "pass" : "warn",
+                    detail: glm52ThinkingMapOk(thinkingModel)
+                        ? "off/high/max exposed; minimal/low/medium/xhigh hidden"
+                        : "Unexpected thinkingLevelMap on active or default model",
+                });
+            }
+            else {
+                checks.push({
+                    name: "GLM-5.2 thinkingLevelMap",
+                    status: "skip",
+                    detail: `${thinkingModel?.id ?? "model"} has no reasoning_effort control; thinkingLevelMap not applicable`,
+                });
+            }
             for (const level of DOCTOR_THINKING_LEVELS) {
                 checks.push({
                     name: `Payload (${level})`,
@@ -147,6 +196,13 @@ export function registerZaiDoctorCommand(pi, deps) {
                 detail: getZaiCompat(thinkingModel)?.zaiToolStream
                     ? "zaiToolStream enabled on active/default model"
                     : "zaiToolStream not enabled on inspected model",
+            });
+            checks.push({
+                name: "Cache affinity header",
+                status: config.sessionAffinity === "experimental" ? "pass" : "skip",
+                detail: config.sessionAffinity === "experimental"
+                    ? `X-Session-Id enabled (id ${sessionState.sessionAffinityId.slice(0, 12)}...)`
+                    : "X-Session-Id off (set zai.sessionAffinity=experimental to enable)",
             });
             checks.push({
                 name: "Streamed usage + cached tokens",
@@ -189,6 +245,7 @@ export function registerZaiDoctorCommand(pi, deps) {
             });
             if (credentialConfigured && thinkingModel) {
                 checks.push(await runNetworkProbe(ctx, thinkingModel));
+                checks.push(await runConnectionStabilityProbe(ctx, thinkingModel));
             }
             else {
                 checks.push({
@@ -196,7 +253,21 @@ export function registerZaiDoctorCommand(pi, deps) {
                     status: "skip",
                     detail: "Skipped because credentials are not configured.",
                 });
+                checks.push({
+                    name: "Connection stability",
+                    status: "skip",
+                    detail: "Skipped because credentials are not configured.",
+                });
             }
+            const retrySettings = readPiRetrySettings();
+            const retryAdvice = formatRetrySettingsAdvice(retrySettings);
+            checks.push({
+                name: "Pi retry settings",
+                status: retryAdvice ? "warn" : "pass",
+                detail: retryAdvice
+                    ? `${retryAdvice}. Suggested snippet:\n${formatRecommendedRetrySettingsJson()}`
+                    : `enabled=${retrySettings.enabled}, agentMaxRetries=${retrySettings.agentMaxRetries}, providerMaxRetries=${retrySettings.providerMaxRetries}`,
+            });
             const zaiCheck = requireZaiModel(ctx);
             if ("error" in zaiCheck) {
                 checks.push({

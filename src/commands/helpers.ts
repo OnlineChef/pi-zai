@@ -4,6 +4,7 @@ import type { ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import { isCodingPlanProvider, isPlatformProvider, isZaiModel } from "../cache/context-policy.ts";
 import { endpointLabel } from "../cache/metrics.ts";
 import type { ZaiConfig } from "../config.ts";
+import { formatPiCredentialSource } from "../credentials.ts";
 
 export type SessionUsageTotals = {
 	input: number;
@@ -57,12 +58,10 @@ export function describeClearThinking(
 }
 
 export function describePreservedThinking(config: ZaiConfig): string {
-	const source =
-		process.env.PI_ZAI_PRESERVE_THINKING !== undefined ? "PI_ZAI_PRESERVE_THINKING" : "settings.json or default";
 	if (config.preserveThinking) {
-		return `enabled via ${source}`;
+		return "enabled via settings.json";
 	}
-	return `disabled (default; source: ${source})`;
+	return "disabled (default; source: settings.json)";
 }
 
 export function describeThinkingPayload(
@@ -119,15 +118,7 @@ export function getSessionUsageTotals(ctx: ExtensionCommandContext): SessionUsag
 }
 
 export function formatCredentialSource(provider: string, ctx: Pick<ExtensionCommandContext, "modelRegistry">): string {
-	const auth = ctx.modelRegistry.getProviderAuthStatus(provider);
-	if (!auth.configured) return "not configured";
-	if (auth.source === "environment" && auth.label) return auth.label;
-	if (auth.source === "models_json_command") return "models.json (command)";
-	if (auth.source === "models_json_key") return "models.json (key)";
-	if (auth.source === "stored") return "auth.json";
-	if (auth.source === "runtime") return "runtime";
-	if (auth.source === "fallback") return "fallback";
-	return auth.source ?? "configured";
+	return formatPiCredentialSource(provider, ctx.modelRegistry);
 }
 
 export function isSubscriptionManaged(model: Model<any> | undefined): boolean {

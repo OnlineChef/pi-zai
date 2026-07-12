@@ -1,7 +1,8 @@
 import { computeCacheRatios } from "../cache/metrics.js";
+import { fetchQuotaLimit, formatQuotaLimit, monitorBaseFromModelUrl } from "../usage-monitor.js";
 import { getCacheMetricsStore } from "./cache-state.js";
 import { formatDollarCost, formatPercent, formatTokens, formatUsageLine, getLastAssistantUsage, getSessionUsageTotals, isEstimatedCost, isSubscriptionManaged, requireZaiModel, } from "./helpers.js";
-export function registerZaiUsageCommand(pi) {
+export function registerZaiUsageCommand(pi, deps) {
     pi.registerCommand("zai-usage", {
         description: "Show native Pi usage with Z.AI cache and cost interpretation",
         handler: async (_args, ctx) => {
@@ -20,6 +21,7 @@ export function registerZaiUsageCommand(pi) {
                 cacheRead: sessionTotals.cacheRead,
                 cacheWrite: sessionTotals.cacheWrite,
             });
+            const rollingHitRatio = cacheStats && cacheStats.rolling.requests > 0 ? cacheStats.rolling.hitRatio : sessionRatios.hitRatio;
             const costInterpretation = isSubscriptionManaged(model)
                 ? "Dollar cost: subscription-managed (Coding Plan)"
                 : isEstimatedCost(model)
@@ -27,6 +29,7 @@ export function registerZaiUsageCommand(pi) {
                     : "Dollar cost: unavailable";
             const lines = [
                 "Z.AI usage",
+                `Extension: @onlinechefgroep/pi-zai ${deps.extensionVersion}`,
                 "",
                 "Pi native token accounting",
                 `  Requests: ${sessionTotals.requests}`,
@@ -41,12 +44,24 @@ export function registerZaiUsageCommand(pi) {
                 "  cacheRead = cached prompt tokens",
                 "  total prompt = input + cacheRead + cacheWrite",
                 `  Session hit ratio: ${formatPercent(sessionRatios.hitRatio)}`,
-                `  Extension rolling hit ratio: ${cacheStats ? formatPercent(cacheStats.rolling.hitRatio) : "n/a"}`,
+                `  Extension rolling hit ratio: ${formatPercent(rollingHitRatio)}`,
                 `  ${costInterpretation}`,
                 "",
                 "Last request",
                 lastUsage ? `  ${formatUsageLine(lastUsage)}` : "  none",
             ];
+            const monitorBase = monitorBaseFromModelUrl(model.baseUrl);
+            const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
+            if (monitorBase && auth.ok && auth.apiKey) {
+                const quota = await fetchQuotaLimit(monitorBase, auth.apiKey, { headers: auth.headers });
+                lines.push("");
+                if (quota.ok) {
+                    lines.push(...formatQuotaLimit(quota.data));
+                }
+                else {
+                    lines.push(`Coding Plan quota unavailable: ${quota.error}`);
+                }
+            }
             ctx.ui.notify(lines.join("\n"), "info");
         },
     });

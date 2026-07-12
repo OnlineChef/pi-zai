@@ -1,11 +1,15 @@
+import { clampThinkingLevel } from "@earendil-works/pi-ai/compat";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { computeCacheRatios } from "../cache/metrics.ts";
-import { sessionState } from "../state.ts";
+import { resolvePromptStability } from "../prompt-stability.ts";
+import { getTpsTracker, sessionState } from "../state.ts";
+import { formatTpsTelemetryLines } from "../telemetry/tps.ts";
 import { getCacheMetricsStore } from "./cache-state.ts";
 import type { ZaiCommandDeps } from "./deps.ts";
 import {
 	describeClearThinking,
 	describePreservedThinking,
+	describeThinkingPayload,
 	formatCredentialSource,
 	formatDollarCost,
 	formatPercent,
@@ -29,7 +33,11 @@ export function registerZaiStatusCommand(pi: ExtensionAPI, deps: ZaiCommandDeps)
 
 			const model = check.model;
 			const config = deps.getConfig(ctx.cwd);
-			const thinkingLevel = pi.getThinkingLevel();
+			const rawThinkingLevel = pi.getThinkingLevel();
+			const thinkingLevel = clampThinkingLevel(model, rawThinkingLevel) as typeof rawThinkingLevel;
+			if (thinkingLevel !== rawThinkingLevel) {
+				pi.setThinkingLevel(thinkingLevel);
+			}
 			const credentialSource =
 				(await deps.resolveCredentialSourceName(model.provider, ctx)) ??
 				formatCredentialSource(model.provider, ctx);
@@ -43,15 +51,19 @@ export function registerZaiStatusCommand(pi: ExtensionAPI, deps: ZaiCommandDeps)
 			const toolStream = getZaiCompat(model)?.zaiToolStream === true ? "enabled" : "disabled";
 			const sessionCostLabel =
 				model.provider === "zai-platform" ? formatDollarCost(sessionTotals.cost) : "subscription-managed";
-			const promptAnalysis = sessionState.promptStability;
+			const promptAnalysis = resolvePromptStability(ctx.getSystemPrompt(), sessionState.promptStability);
+			const tpsStats = getTpsTracker().get();
 
 			const lines = [
 				"Z.AI status",
+				`Extension: @onlinechefgroep/pi-zai ${deps.extensionVersion}`,
 				"",
 				`Provider: ${model.provider}`,
 				`Endpoint: ${getEndpointLabel(model)}`,
 				`Model: ${model.id}`,
-				`Thinking: ${thinkingLevel} (Pi native)`,
+				rawThinkingLevel === thinkingLevel
+					? `Thinking: ${thinkingLevel} (Pi native) → ${describeThinkingPayload(config, thinkingLevel, model)}`
+					: `Thinking: ${thinkingLevel} (Pi native; clamped from ${rawThinkingLevel}) → ${describeThinkingPayload(config, thinkingLevel, model)}`,
 				`clear_thinking: ${describeClearThinking(config, thinkingLevel, model)}`,
 				`Preserved thinking: ${describePreservedThinking(config)}`,
 				`Tool streaming: ${toolStream}`,
@@ -59,6 +71,9 @@ export function registerZaiStatusCommand(pi: ExtensionAPI, deps: ZaiCommandDeps)
 				"",
 				"Last usage",
 				lastUsage ? `  ${formatUsageLine(lastUsage)}` : "  none",
+				"",
+				"Throughput",
+				...formatTpsTelemetryLines(tpsStats),
 				"",
 				"Cache",
 				`  Last request hit ratio: ${lastHitRatio !== undefined ? formatPercent(lastHitRatio) : "n/a"}`,

@@ -12,11 +12,10 @@ pi install npm:@onlinechefgroep/pi-zai
 /reload
 ```
 
-Set credentials (names only — never commit values):
+Set credentials through Pi's normal auth paths (`/login`, `auth.json`, `models.json`, or `ZAI_API_KEY`):
 
 ```bash
-export ZAI_PLATFORM_API_KEY='...'   # Platform API (metered)
-export ZAI_API_KEY='...'            # Coding Plan (subscription)
+export ZAI_API_KEY='...'   # used by zai and zai-platform
 ```
 
 Select a Z.AI model in Pi, then verify:
@@ -31,10 +30,12 @@ Select a Z.AI model in Pi, then verify:
 
 | Feature | Description |
 |---------|-------------|
-| Platform provider | Registers `zai-platform` with verified per-model pricing metadata |
-| Cache optimizer | Tracks implicit prefix reuse; no invented cache breakpoints |
+| Platform provider | Catalog helpers only; register `zai-platform` yourself via `models.json` |
+| Cache optimizer | Tracks implicit prefix reuse; `X-Session-Id` affinity for warm nodes |
+| Coding Plan quota | `/zai-usage` shows 5h / weekly / MCP budget from monitor API |
 | Cost-first thinking | `clear_thinking=true` by default; no historical reasoning replay |
 | Compaction policy | Z.AI-aware summary structure; drops hidden reasoning |
+| Connection resilience | Doctor probes, retry advice, hints after connection errors |
 | Operator commands | `/zai`, `/zai-endpoint`, `/zai-cache`, `/zai-usage`, `/zai-doctor` |
 
 ## Documentation
@@ -103,9 +104,10 @@ Details: [Cache optimization](docs/cache-optimization.md).
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `zai.preserveThinking` | `false` | Replay historical reasoning; reduces cache efficiency |
-| `PI_ZAI_PRESERVE_THINKING` | unset | Env override for preserve thinking |
-| `ZAI_PLATFORM_API_KEY` | — | Platform API key (preferred on platform) |
-| `ZAI_API_KEY` | — | Coding Plan key |
+| `zai.statusTps` | `true` | Show last throughput in Pi footer |
+| `zai.sessionAffinity` | `off` | `experimental` enables `X-Session-Id` header |
+| `zai.metrics.mode` | `local` | `off` / `memory` / `local` SQLite metrics |
+| `zai.telemetry.mode` | `off` | Remote telemetry not implemented yet |
 
 ## Development
 

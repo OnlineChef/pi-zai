@@ -1,10 +1,39 @@
 # Troubleshooting
 
+## `Connection error` / `Recv failure` / `fetch failed`
+
+Pi already retries transient transport errors (`connection error` is retryable). Defaults: **3 agent retries** with 2s/4s/8s backoff, but **0 SDK retries** — so a dropped TCP connection fails fast.
+
+**Reduce failures:**
+
+1. Run `/zai-doctor` — checks **Connection stability** (3 chat probes) and **Pi retry settings**.
+2. Add SDK retries in `~/.pi/agent/settings.json`:
+
+```json
+{
+  "retry": {
+    "enabled": true,
+    "maxRetries": 5,
+    "baseDelayMs": 2000,
+    "provider": {
+      "maxRetries": 2,
+      "maxRetryDelayMs": 60000
+    }
+  }
+}
+```
+
+3. Switch endpoint: `/zai-endpoint platform` or `/zai-endpoint coding` (one may be more stable from your network).
+4. Disable VPN/proxy temporarily; check firewall to `api.z.ai`.
+5. During retries Pi shows a retry indicator — wait before assuming total failure.
+
+After all retries fail, pi-zai shows an actionable hint via `agent_settled`.
+
 ## `/zai-doctor` network probe fails
 
 | Symptom | Likely cause | Fix |
 |---------|--------------|-----|
-| `No credentials` | Key not in env or auth store | Set `ZAI_PLATFORM_API_KEY` or configure Pi auth |
+| `No credentials` | Key not in Pi auth | Configure via `/login`, `auth.json`, `models.json`, or `ZAI_API_KEY` |
 | HTTP 401 | Invalid or rotated key | Update credentials |
 | HTTP 403 | Region or product restriction | Try Platform vs Coding endpoint |
 | Connection drop on Coding Plan | Network path to `/coding/` endpoint | Use Platform; check VPN/firewall |
@@ -23,7 +52,7 @@
 Check `/zai`:
 
 - `Preserved thinking: enabled` disables cost-first mode
-- Disable via settings or unset `PI_ZAI_PRESERVE_THINKING`
+- Disable via `zai.preserveThinking: false` in settings.json
 
 ## Extension not loading
 

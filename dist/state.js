@@ -1,4 +1,8 @@
+import { randomUUID } from "node:crypto";
+import { AttemptTracker } from "./attempt-tracker.js";
 import { CacheMetricsStore } from "./cache/metrics.js";
+import { QueryCorrelation } from "./correlation.js";
+import { TpsTracker } from "./telemetry/tps.js";
 const ZAI_PROVIDERS = new Set(["zai", "zai-coding-cn", "zai-platform"]);
 export function isZaiProvider(provider) {
     return provider !== undefined && ZAI_PROVIDERS.has(provider);
@@ -12,6 +16,9 @@ export function inferEndpoint(provider, baseUrl) {
         return "coding";
     return "unknown";
 }
+export function newSessionAffinityId() {
+    return `pi-${randomUUID()}`;
+}
 export function createZaiSessionState(preserveThinking = false) {
     return {
         preserveThinking,
@@ -20,17 +27,55 @@ export function createZaiSessionState(preserveThinking = false) {
         modelId: undefined,
         thinkingLevel: undefined,
         credentialSource: undefined,
+        sessionHash: undefined,
+        projectId: undefined,
+        sessionAffinityId: newSessionAffinityId(),
         promptStability: undefined,
     };
 }
 export const sessionState = createZaiSessionState();
 let hookHandlers = {};
 let cacheMetricsStore = new CacheMetricsStore();
+let tpsTracker = new TpsTracker();
+let metricsStorage;
+let queryCorrelation = new QueryCorrelation();
+let attemptTracker = new AttemptTracker();
+let lastMetricsCleanupDay;
 export function getCacheMetricsStore() {
     return cacheMetricsStore;
 }
+export function getTpsTracker() {
+    return tpsTracker;
+}
+export function getMetricsStorage() {
+    return metricsStorage;
+}
+export function setMetricsStorage(storage) {
+    metricsStorage?.close();
+    metricsStorage = storage;
+}
+export function getQueryCorrelation() {
+    return queryCorrelation;
+}
+export function getAttemptTracker() {
+    return attemptTracker;
+}
+export function resetCorrelationState() {
+    queryCorrelation = new QueryCorrelation();
+    attemptTracker = new AttemptTracker();
+}
 export function resetCacheMetrics() {
     cacheMetricsStore = new CacheMetricsStore();
+}
+export function resetTpsMetrics() {
+    tpsTracker = new TpsTracker();
+}
+export function shouldRunDailyMetricsCleanup(now = Date.now()) {
+    const day = new Date(now).toISOString().slice(0, 10);
+    if (lastMetricsCleanupDay === day)
+        return false;
+    lastMetricsCleanupDay = day;
+    return true;
 }
 export function setZaiHookHandlers(handlers) {
     hookHandlers = handlers;

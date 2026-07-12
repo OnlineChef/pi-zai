@@ -1,6 +1,15 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { CONFIG_DIR_NAME, getAgentDir } from "@earendil-works/pi-coding-agent";
+const DEFAULT_METRICS = {
+    mode: "local",
+    retentionDays: 30,
+    rollupRetentionDays: 180,
+    maxDatabaseBytes: 32 * 1024 * 1024,
+};
+const PROMPT_STABILITY_MODES = new Set(["off", "observe", "safe"]);
+const SESSION_AFFINITY_MODES = new Set(["off", "observe", "experimental"]);
+const METRICS_MODES = new Set(["off", "memory", "local"]);
 function readSettingsFile(path) {
     if (!existsSync(path))
         return undefined;
@@ -27,27 +36,34 @@ function readZaiSettingsSection(cwd) {
         ...(typeof projectZai === "object" && projectZai !== null ? projectZai : {}),
     };
 }
-function parseBooleanEnv(value, defaultValue) {
-    if (value === undefined)
-        return defaultValue;
-    const normalized = value.trim().toLowerCase();
-    if (normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on") {
-        return true;
+function parseEnum(value, allowed, fallback) {
+    return typeof value === "string" && allowed.has(value) ? value : fallback;
+}
+function parsePositiveInt(value, fallback) {
+    if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+        return fallback;
     }
-    if (normalized === "0" || normalized === "false" || normalized === "no" || normalized === "off") {
-        return false;
-    }
-    return defaultValue;
+    return Math.floor(value);
+}
+function loadMetricsConfig(settings) {
+    const metrics = settings?.metrics;
+    return {
+        mode: parseEnum(metrics?.mode, METRICS_MODES, DEFAULT_METRICS.mode),
+        retentionDays: parsePositiveInt(metrics?.retentionDays, DEFAULT_METRICS.retentionDays),
+        rollupRetentionDays: parsePositiveInt(metrics?.rollupRetentionDays, DEFAULT_METRICS.rollupRetentionDays),
+        maxDatabaseBytes: parsePositiveInt(metrics?.maxDatabaseBytes, DEFAULT_METRICS.maxDatabaseBytes),
+    };
 }
 export function loadZaiConfig(cwd = process.cwd()) {
-    if (process.env.PI_ZAI_PRESERVE_THINKING !== undefined) {
-        return {
-            preserveThinking: parseBooleanEnv(process.env.PI_ZAI_PRESERVE_THINKING, false),
-        };
-    }
     const settings = readZaiSettingsSection(cwd);
     return {
         preserveThinking: settings?.preserveThinking ?? false,
+        statusTps: settings?.statusTps ?? true,
+        statusTpsAvg: settings?.statusTpsAvg ?? false,
+        promptStabilityMode: parseEnum(settings?.promptStability?.mode, PROMPT_STABILITY_MODES, "observe"),
+        sessionAffinity: parseEnum(settings?.sessionAffinity, SESSION_AFFINITY_MODES, "off"),
+        metrics: loadMetricsConfig(settings),
+        telemetryMode: "off",
     };
 }
 //# sourceMappingURL=config.js.map
