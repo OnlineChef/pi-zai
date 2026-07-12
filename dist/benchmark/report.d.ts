@@ -9,7 +9,7 @@ export type BenchmarkReportInput = {
     transport: TransportSummary;
     cache: SessionCacheStats | undefined;
     completedRunsForVariant: number;
-    turnsObserved?: number;
+    turnsObserved: number;
 };
 export declare function buildBenchmarkRunReport(input: BenchmarkReportInput): BenchmarkRunReport;
 export declare function evaluateRunGates(variant: BenchmarkVariantId, scenario: BenchmarkScenarioId, turnsObserved: number, completedRunsForVariant: number): BenchmarkGateCheck[];

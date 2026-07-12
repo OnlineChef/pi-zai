@@ -1,6 +1,5 @@
 import { getMetricsStorage, sessionState } from "../state.js";
 import { projectIdForCwd } from "../storage/project-id.js";
-import { EMPTY_TRANSPORT_SUMMARY } from "../storage/types.js";
 function formatLatency(label, value) {
     if (value === undefined)
         return undefined;
@@ -33,9 +32,7 @@ export function registerZaiTransportCommand(pi) {
                 return;
             }
             const projectId = sessionState.projectId ?? projectIdForCwd(ctx.cwd);
-            const summary = storage.getTransportSummary({ projectId }) ?? {
-                ...EMPTY_TRANSPORT_SUMMARY,
-            };
+            const summary = storage.getTransportSummary({ projectId });
             ctx.ui.notify(formatTransportSummary(summary), "info");
         },
     });

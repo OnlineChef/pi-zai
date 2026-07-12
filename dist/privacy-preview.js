@@ -32,13 +32,13 @@ function bucketCount(value, edges) {
     }
     return `${edges.at(-1)}+`;
 }
-export function buildAggregateTelemetryPreview(config, sessionState, usage) {
+export function buildAggregateTelemetryPreview(config, extensionVersion, sessionState, usage) {
     const hitRatio = usage.cacheHitRatio;
     return {
         schema: 1,
         status: "preview-only-not-sent",
         telemetryMode: config.telemetryMode,
-        extensionVersion: "0.1.1",
+        extensionVersion,
         model: sessionState.modelId ?? "unknown",
         endpointKind: sessionState.endpoint,
         promptMode: config.promptStabilityMode,
@@ -53,8 +53,8 @@ export function buildAggregateTelemetryPreview(config, sessionState, usage) {
         },
     };
 }
-export function formatPrivacyPreview(config, sessionState, usage) {
-    const aggregatePreview = buildAggregateTelemetryPreview(config, sessionState, usage);
+export function formatPrivacyPreview(config, extensionVersion, sessionState, usage) {
+    const aggregatePreview = buildAggregateTelemetryPreview(config, extensionVersion, sessionState, usage);
     const sections = [
         {
             title: "Local SQLite allowlist",

@@ -7,9 +7,6 @@ const ACTIONS = ["manifest", "instructions", "start", "complete", "status", "rep
 function createBenchmarkRunId() {
     return `bench-${Date.now()}-${randomUUID().slice(0, 8)}`;
 }
-function resolveProjectId(cwd) {
-    return sessionState.projectId ?? projectIdForCwd(cwd);
-}
 function completedRunsForVariant(variant) {
     const storage = getMetricsStorage();
     if (!storage)
@@ -74,7 +71,7 @@ export function registerZaiBenchmarkCommand(pi, deps) {
                         return;
                     }
                     const createdAt = Date.now();
-                    const projectId = resolveProjectId(ctx.cwd);
+                    const projectId = sessionState.projectId ?? projectIdForCwd(ctx.cwd);
                     const manifest = {
                         schema: 1,
                         runId: createBenchmarkRunId(),
@@ -121,8 +118,7 @@ export function registerZaiBenchmarkCommand(pi, deps) {
                     const projectId = run.manifest.projectId;
                     const filter = { projectId, since: run.manifest.createdAt };
                     const completedAt = Date.now();
-                    const totalAttempts = storage.getUsageSummary({ projectId }).attempts;
-                    const turnsObserved = Math.max(0, totalAttempts - run.manifest.attemptsBaseline);
+                    const projectSummary = storage.getUsageSummary({ projectId });
                     const report = buildBenchmarkRunReport({
                         manifest: run.manifest,
                         completedAt,
@@ -130,7 +126,7 @@ export function registerZaiBenchmarkCommand(pi, deps) {
                         transport: storage.getTransportSummary(filter),
                         cache: getCacheMetricsStore().get(),
                         completedRunsForVariant: completedRunsForVariant(run.variant) + 1,
-                        turnsObserved,
+                        turnsObserved: projectSummary.attempts - run.manifest.attemptsBaseline,
                     });
                     storage.completeBenchmarkRun(runId, report);
                     if (sessionState.activeBenchmarkRunId === runId) {

@@ -4,12 +4,11 @@ export function buildBenchmarkRunReport(input) {
     const cacheHitRatio = rolling && rolling.input + rolling.cacheRead + rolling.cacheWrite > 0
         ? rolling.cacheRead / (rolling.input + rolling.cacheRead + rolling.cacheWrite)
         : input.usage.cacheHitRatio;
-    const turnsObserved = input.turnsObserved ?? input.usage.attempts;
     return {
         schema: 1,
         completedAt: input.completedAt,
         durationMs: Math.max(0, input.completedAt - input.manifest.createdAt),
-        turnsObserved,
+        turnsObserved: input.turnsObserved,
         usage: input.usage,
         transport: input.transport,
         cache: {
@@ -17,7 +16,7 @@ export function buildBenchmarkRunReport(input) {
             cacheHitRatio,
             segmentChanges: input.cache?.lastPrefixChangeReason ? 1 : 0,
         },
-        gates: evaluateRunGates(input.manifest.variant, input.manifest.scenario, turnsObserved, input.completedRunsForVariant),
+        gates: evaluateRunGates(input.manifest.variant, input.manifest.scenario, input.turnsObserved, input.completedRunsForVariant),
     };
 }
 export function evaluateRunGates(variant, scenario, turnsObserved, completedRunsForVariant) {
@@ -83,8 +82,6 @@ export function formatBenchmarkGatesSummary(runs) {
     const baselineRuns = completed.filter((run) => run.variant === "A1");
     if (affinityRuns.length > 0 && baselineRuns.length > 0) {
         const median = (values) => {
-            if (values.length === 0)
-                return 0;
             const sorted = [...values].sort((left, right) => left - right);
             return sorted[Math.floor(sorted.length / 2)] ?? 0;
         };
