@@ -8,6 +8,7 @@ import { registerZaiDoctorCommand } from "./doctor.js";
 import { registerZaiEndpointCommand } from "./endpoint.js";
 import { registerZaiPrivacyCommand } from "./privacy.js";
 import { registerZaiStatusCommand } from "./status.js";
+import { registerZaiTelemetryCommand } from "./telemetry.js";
 import { registerZaiTransportCommand } from "./transport.js";
 import { registerZaiUsageCommand } from "./usage.js";
 export { isPlatformProviderRegistered, resolveModelForEndpoint };
@@ -21,6 +22,7 @@ export function registerZaiCommands(pi, deps) {
     registerZaiPrivacyCommand(pi, deps);
     registerZaiTransportCommand(pi);
     registerZaiBenchmarkCommand(pi, deps);
+    registerZaiTelemetryCommand(pi, deps);
 }
 export function createDefaultZaiCommandDeps(extensionVersion) {
     return {

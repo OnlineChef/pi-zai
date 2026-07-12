@@ -1,5 +1,5 @@
 import type { BenchmarkRunManifest, BenchmarkRunRecord, BenchmarkRunReport } from "../benchmark/types.ts";
-import { type CleanupResult, type MetricsExportFormat, type MetricsStorage, type MetricsStorageKind, type ProviderAttemptRecord, type StorageStatus, type TransportSummary, type UsageFilter, type UsageSummary } from "./types.ts";
+import { type AnonymousDailySummary, type CleanupResult, type MetricsExportFormat, type MetricsStorage, type MetricsStorageKind, type ProviderAttemptRecord, type StorageStatus, type TransportSummary, type UsageFilter, type UsageSummary } from "./types.ts";
 export interface MemoryStorageOptions {
     enabled?: boolean;
     retentionDays?: number;
@@ -10,6 +10,7 @@ export declare class MemoryStorage implements MetricsStorage {
     private readonly retentionDays;
     private records;
     private benchmarkRuns;
+    private telemetryUploadedDays;
     constructor(options?: MemoryStorageOptions);
     initialize(): void;
     recordAttempt(record: ProviderAttemptRecord): void;
@@ -28,6 +29,11 @@ export declare class MemoryStorage implements MetricsStorage {
     exportData(format: MetricsExportFormat, filter?: UsageFilter): string;
     vacuum(): void;
     close(): void;
+    getAnonymousDailySummary(day: string): AnonymousDailySummary | undefined;
+    listTelemetryDays(): string[];
+    listPendingTelemetryDays(now?: number): string[];
+    isTelemetryDayUploaded(day: string): boolean;
+    markTelemetryDayUploaded(day: string, uploadedAt: number): void;
     private filtered;
 }
 //# sourceMappingURL=memory.d.ts.map

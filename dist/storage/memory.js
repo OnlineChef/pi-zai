@@ -1,3 +1,4 @@
+import { summarizeAnonymousDaily, utcDayFromMs } from "./anonymous-daily.js";
 import { EMPTY_TRANSPORT_SUMMARY, EMPTY_USAGE_SUMMARY, serializeAttempts, summarizeAttempts, summarizeTransportFromAttempts, } from "./types.js";
 export class MemoryStorage {
     kind;
@@ -5,6 +6,7 @@ export class MemoryStorage {
     retentionDays;
     records = [];
     benchmarkRuns = [];
+    telemetryUploadedDays = new Map();
     constructor(options = {}) {
         this.enabled = options.enabled ?? true;
         this.kind = this.enabled ? "memory" : "off";
@@ -92,12 +94,43 @@ export class MemoryStorage {
     clearAll() {
         this.records = [];
         this.benchmarkRuns = [];
+        this.telemetryUploadedDays.clear();
     }
     exportData(format, filter = {}) {
         return serializeAttempts(this.enabled ? this.filtered(filter) : [], format);
     }
     vacuum() { }
     close() { }
+    getAnonymousDailySummary(day) {
+        if (!this.enabled)
+            return undefined;
+        const records = this.records.filter((record) => utcDayFromMs(record.occurredAt) === day);
+        if (records.length === 0)
+            return undefined;
+        return summarizeAnonymousDaily(records);
+    }
+    listTelemetryDays() {
+        if (!this.enabled)
+            return [];
+        const days = new Set(this.records.map((record) => utcDayFromMs(record.occurredAt)));
+        return Array.from(days).sort();
+    }
+    listPendingTelemetryDays(now = Date.now()) {
+        if (!this.enabled)
+            return [];
+        const today = utcDayFromMs(now);
+        return this.listTelemetryDays().filter((day) => day < today && !this.isTelemetryDayUploaded(day));
+    }
+    isTelemetryDayUploaded(day) {
+        if (!this.enabled)
+            return false;
+        return this.telemetryUploadedDays.has(day);
+    }
+    markTelemetryDayUploaded(day, uploadedAt) {
+        if (!this.enabled)
+            return;
+        this.telemetryUploadedDays.set(day, uploadedAt);
+    }
     filtered(filter) {
         return this.records.filter((record) => {
             if (filter.projectId !== undefined && record.projectId !== filter.projectId)

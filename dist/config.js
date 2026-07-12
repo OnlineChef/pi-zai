@@ -10,6 +10,7 @@ const DEFAULT_METRICS = {
 const PROMPT_STABILITY_MODES = new Set(["off", "observe", "safe"]);
 const SESSION_AFFINITY_MODES = new Set(["off", "observe", "experimental"]);
 const METRICS_MODES = new Set(["off", "memory", "local"]);
+const TELEMETRY_MODES = new Set(["off", "aggregate"]);
 function readSettingsFile(path) {
     if (!existsSync(path))
         return undefined;
@@ -54,8 +55,19 @@ function loadMetricsConfig(settings) {
         maxDatabaseBytes: parsePositiveInt(metrics?.maxDatabaseBytes, DEFAULT_METRICS.maxDatabaseBytes),
     };
 }
+function loadTelemetryConfig(settings) {
+    const telemetry = settings?.telemetry;
+    const ingestUrl = typeof telemetry?.ingestUrl === "string" && telemetry.ingestUrl.trim().length > 0
+        ? telemetry.ingestUrl.trim()
+        : undefined;
+    return {
+        mode: parseEnum(telemetry?.mode, TELEMETRY_MODES, "off"),
+        ingestUrl,
+    };
+}
 export function loadZaiConfig(cwd = process.cwd()) {
     const settings = readZaiSettingsSection(cwd);
+    const telemetry = loadTelemetryConfig(settings);
     return {
         preserveThinking: settings?.preserveThinking ?? false,
         statusTps: settings?.statusTps ?? true,
@@ -63,7 +75,8 @@ export function loadZaiConfig(cwd = process.cwd()) {
         promptStabilityMode: parseEnum(settings?.promptStability?.mode, PROMPT_STABILITY_MODES, "observe"),
         sessionAffinity: parseEnum(settings?.sessionAffinity, SESSION_AFFINITY_MODES, "off"),
         metrics: loadMetricsConfig(settings),
-        telemetryMode: "off",
+        telemetryMode: telemetry.mode,
+        telemetryIngestUrl: telemetry.ingestUrl,
     };
 }
 //# sourceMappingURL=config.js.map

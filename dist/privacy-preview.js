@@ -1,3 +1,4 @@
+import { isTelemetryUploadEnabled } from "./telemetry/sync.js";
 const LOCAL_ALLOWLIST = [
     "timestamps",
     "project/session hashes (local HMAC)",
@@ -36,7 +37,7 @@ export function buildAggregateTelemetryPreview(config, extensionVersion, session
     const hitRatio = usage.cacheHitRatio;
     return {
         schema: 1,
-        status: "preview-only-not-sent",
+        status: isTelemetryUploadEnabled(config) ? "aggregate-ready" : "preview-only-not-sent",
         telemetryMode: config.telemetryMode,
         extensionVersion,
         model: sessionState.modelId ?? "unknown",
@@ -67,8 +68,11 @@ export function formatPrivacyPreview(config, extensionVersion, sessionState, usa
         {
             title: "Remote telemetry",
             lines: [
-                `  mode: ${config.telemetryMode} (uploads disabled)`,
-                "  Future opt-in aggregate preview (not sent):",
+                `  mode: ${config.telemetryMode}`,
+                isTelemetryUploadEnabled(config)
+                    ? "  uploads: enabled (anonymous daily aggregates)"
+                    : "  uploads: disabled (run /zai-telemetry enable after setting mode aggregate)",
+                "  Aggregate preview (current session rollup):",
                 `  ${JSON.stringify(aggregatePreview, null, 2).split("\n").join("\n  ")}`,
             ],
         },

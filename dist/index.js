@@ -12,13 +12,14 @@ import { formatConnectionErrorHint, isConnectionErrorMessage } from "./resilienc
 import { dispatchZaiHook, getAttemptTracker, getCacheMetricsStore, getMetricsStorage, getQueryCorrelation, getTpsTracker, inferEndpoint, isZaiProvider, newSessionAffinityId, resetCacheMetrics, resetCorrelationState, resetTpsMetrics, sessionState, setMetricsStorage, shouldRunDailyMetricsCleanup, } from "./state.js";
 import { createMetricsStorage, projectIdForCwd } from "./storage/index.js";
 import { clearZaiStatus, updateZaiTpsStatus } from "./telemetry/status.js";
+import { isTelemetryUploadEnabled, syncPendingTelemetry } from "./telemetry/sync.js";
 export { loadZaiConfig } from "./config.js";
 export { formatPiCredentialSource } from "./credentials.js";
 export { buildPlatformModelCatalog, GLM52_THINKING_LEVEL_MAP, PLATFORM_BASE_URL, } from "./model-catalog.js";
 export { isNativeZaiModel } from "./native-zai.js";
 export { normalizeZaiThinkingPayload } from "./payload-normalizer.js";
 export { createZaiSessionState, dispatchZaiHook, getCacheMetricsStore, getMetricsStorage, getZaiHookHandlers, inferEndpoint, isZaiProvider, resetCacheMetrics, sessionState, setZaiHookHandlers, } from "./state.js";
-const EXTENSION_VERSION = "0.1.1";
+const EXTENSION_VERSION = "0.3.0";
 function clampThinkingForModel(pi, model) {
     if (!model?.reasoning)
         return;
@@ -124,6 +125,13 @@ export default function piZaiExtension(pi) {
         const storage = getMetricsStorage();
         if (storage && shouldRunDailyMetricsCleanup()) {
             storage.runCleanup(Date.now());
+        }
+        if (storage && isTelemetryUploadEnabled(config)) {
+            void syncPendingTelemetry({
+                config,
+                extensionVersion: EXTENSION_VERSION,
+                storage,
+            });
         }
         updateSessionFromModel(ctx.model, pi.getThinkingLevel());
         if (ctx.model)

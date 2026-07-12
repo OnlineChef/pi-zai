@@ -1,5 +1,5 @@
 import type { BenchmarkRunManifest, BenchmarkRunRecord, BenchmarkRunReport } from "../benchmark/types.ts";
-import { type CleanupResult, type MetricsExportFormat, type MetricsStorage, type ProviderAttemptRecord, type StorageStatus, type TransportSummary, type UsageFilter, type UsageSummary } from "./types.ts";
+import { type AnonymousDailySummary, type CleanupResult, type MetricsExportFormat, type MetricsStorage, type ProviderAttemptRecord, type StorageStatus, type TransportSummary, type UsageFilter, type UsageSummary } from "./types.ts";
 export interface NodeSqliteStorageOptions {
     databasePath: string;
     retentionDays: number;
@@ -32,6 +32,11 @@ export declare class NodeSqliteStorage implements MetricsStorage {
     clearAll(): void;
     exportData(format: MetricsExportFormat, filter?: UsageFilter): string;
     vacuum(): void;
+    getAnonymousDailySummary(day: string): AnonymousDailySummary | undefined;
+    listTelemetryDays(): string[];
+    listPendingTelemetryDays(now?: number): string[];
+    isTelemetryDayUploaded(day: string): boolean;
+    markTelemetryDayUploaded(day: string, uploadedAt: number): void;
     close(): void;
     private executeOrDegrade;
     private enforceSizeLimit;

@@ -1,7 +1,7 @@
 export type PromptStabilityMode = "off" | "observe" | "safe";
 export type SessionAffinityMode = "off" | "observe" | "experimental";
 export type MetricsMode = "off" | "memory" | "local";
-export type TelemetryMode = "off";
+export type TelemetryMode = "off" | "aggregate";
 export interface ZaiMetricsSettings {
     mode?: MetricsMode;
     retentionDays?: number;
@@ -13,6 +13,7 @@ export interface ZaiPromptStabilitySettings {
 }
 export interface ZaiTelemetrySettings {
     mode?: TelemetryMode;
+    ingestUrl?: string;
 }
 export interface ZaiSettings {
     preserveThinking?: boolean;
@@ -37,6 +38,7 @@ export interface ZaiConfig {
     sessionAffinity: SessionAffinityMode;
     metrics: ZaiMetricsConfig;
     telemetryMode: TelemetryMode;
+    telemetryIngestUrl?: string;
 }
 export declare function loadZaiConfig(cwd?: string): ZaiConfig;
 //# sourceMappingURL=config.d.ts.map
