@@ -84,12 +84,15 @@ This is separate from `/zai-benchmark` (manifest A0–A3, local SQLite run track
 
 ## Boundary tests
 
-Runtime guards in `src/boundary.test.ts`:
+Runtime guards in `src/boundary.test.ts` (mock-only — no LLM tokens, no network):
 
-- Extension loads with a mock `ExtensionAPI` and global `fetch` spy
+- Uses a fake `ExtensionAPI` and a global `fetch` spy; never starts a real Pi session
+- `runExtensionLifecycle()` fires all 15 `pi.on()` hooks from `index.ts` in-process to cover a typical session path
 - Full lifecycle does not call `fetch` when telemetry is off
 - Aggregate upload calls `fetch` only via `telemetry/uploader.ts`
 - Provider registration and `PI_ZAI_*` env overrides are verified at runtime
+
+Commands that can fetch (`/zai-doctor`, `/zai-usage`) are not exercised here; they require explicit user invocation.
 
 ## Telemetry worker deploy
 

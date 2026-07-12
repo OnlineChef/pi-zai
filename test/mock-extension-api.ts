@@ -180,6 +180,8 @@ export async function runExtensionLifecycle(
 	ctx: ExtensionContext,
 	options: { safePromptMode?: boolean } = {},
 ): Promise<void> {
+	// In-process only: triggers each pi.on() handler from index.ts once.
+	// No Pi runtime, no provider calls, no LLM tokens.
 	const model = ctx.model ?? createZaiModel();
 	const systemPrompt = options.safePromptMode
 		? "rules\n\n--- dynamic context ---\nctx"
