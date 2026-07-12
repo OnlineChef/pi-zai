@@ -30,6 +30,7 @@ export function createZaiSessionState(preserveThinking = false) {
         sessionHash: undefined,
         projectId: undefined,
         sessionAffinityId: newSessionAffinityId(),
+        activeBenchmarkRunId: undefined,
         promptStability: undefined,
     };
 }

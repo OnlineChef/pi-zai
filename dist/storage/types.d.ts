@@ -1,3 +1,4 @@
+import type { BenchmarkRunManifest, BenchmarkRunRecord, BenchmarkRunReport } from "../benchmark/types.ts";
 export type MetricsStorageKind = "off" | "memory" | "sqlite";
 export type MetricsExportFormat = "json" | "csv";
 export interface ProviderAttemptRecord {
@@ -78,6 +79,10 @@ export interface MetricsStorage {
     clearProject(projectId: string): void;
     clearDetails(): void;
     clearBenchmarks(): void;
+    startBenchmarkRun(manifest: BenchmarkRunManifest): void;
+    completeBenchmarkRun(runId: string, report: BenchmarkRunReport): boolean;
+    listBenchmarkRuns(): BenchmarkRunRecord[];
+    getBenchmarkRun(runId: string): BenchmarkRunRecord | undefined;
     clearAll(): void;
     exportData(format: MetricsExportFormat, filter?: UsageFilter): string;
     vacuum(): void;

@@ -20,7 +20,7 @@ export function registerZaiCommands(pi, deps) {
     registerZaiDoctorCommand(pi, deps);
     registerZaiPrivacyCommand(pi, deps);
     registerZaiTransportCommand(pi);
-    registerZaiBenchmarkCommand(pi);
+    registerZaiBenchmarkCommand(pi, deps);
 }
 export function createDefaultZaiCommandDeps(extensionVersion) {
     return {

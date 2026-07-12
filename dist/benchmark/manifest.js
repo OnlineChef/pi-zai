@@ -106,6 +106,9 @@ export function formatBenchmarkManifest() {
         `  ${Math.round(BENCHMARK_SAMPLE_GATES.medianGapForAffinity * 100)}pp median cache-hit gap for affinity winner`,
         "",
         "Live cache-affinity A/B: npm run benchmark:cache-affinity",
+        "Run tracking: /zai-benchmark start <A1|A2|A3> [scenario]",
+        "              /zai-benchmark complete",
+        "              /zai-benchmark status | report | gates",
         "Instructions: /zai-benchmark instructions <A0|A1|A2|A3> [scenario]",
     ];
     return lines.join("\n");
@@ -126,9 +129,7 @@ export function formatBenchmarkInstructions(variantId, scenarioId) {
         variant.description,
         "",
         "Setup:",
-        variant.extensionLoaded
-            ? "  1. Install pi-zai and /reload"
-            : "  1. Run Pi without pi-zai (A0 control)",
+        variant.extensionLoaded ? "  1. Install pi-zai and /reload" : "  1. Run Pi without pi-zai (A0 control)",
         `  2. Apply settings in .pi/settings.json or ~/.pi/agent/settings.json:`,
         ...settingsJson.split("\n").map((line) => `     ${line}`),
         `  3. Select the same Z.AI model/provider across variants`,

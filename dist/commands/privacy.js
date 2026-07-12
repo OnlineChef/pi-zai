@@ -1,5 +1,6 @@
 import { formatPrivacyPreview } from "../privacy-preview.js";
 import { getMetricsStorage, sessionState } from "../state.js";
+import { projectIdForCwd } from "../storage/project-id.js";
 import { EMPTY_USAGE_SUMMARY } from "../storage/types.js";
 const ACTIONS = ["preview"];
 export function registerZaiPrivacyCommand(pi, deps) {
@@ -17,7 +18,8 @@ export function registerZaiPrivacyCommand(pi, deps) {
             }
             const config = deps.getConfig(ctx.cwd);
             const storage = getMetricsStorage();
-            const usage = storage?.getUsageSummary({ projectId: sessionState.projectId }) ?? { ...EMPTY_USAGE_SUMMARY };
+            const projectId = sessionState.projectId ?? projectIdForCwd(ctx.cwd);
+            const usage = storage?.getUsageSummary({ projectId }) ?? { ...EMPTY_USAGE_SUMMARY };
             ctx.ui.notify(formatPrivacyPreview(config, sessionState, usage), "info");
         },
     });

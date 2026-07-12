@@ -4,6 +4,7 @@ export class MemoryStorage {
     enabled;
     retentionDays;
     records = [];
+    benchmarkRuns = [];
     constructor(options = {}) {
         this.enabled = options.enabled ?? true;
         this.kind = this.enabled ? "memory" : "off";
@@ -30,7 +31,7 @@ export class MemoryStorage {
             kind: this.kind,
             detailRows: this.enabled ? this.records.length : 0,
             rollupRows: 0,
-            benchmarkRows: 0,
+            benchmarkRows: this.enabled ? this.benchmarkRuns.length : 0,
             degraded: false,
         };
     }
@@ -55,9 +56,42 @@ export class MemoryStorage {
     clearDetails() {
         this.records = [];
     }
-    clearBenchmarks() { }
+    clearBenchmarks() {
+        this.benchmarkRuns = [];
+    }
+    startBenchmarkRun(manifest) {
+        if (!this.enabled)
+            return;
+        this.benchmarkRuns.push({
+            runId: manifest.runId,
+            createdAt: manifest.createdAt,
+            variant: manifest.variant,
+            scenario: manifest.scenario,
+            manifest,
+        });
+    }
+    completeBenchmarkRun(runId, report) {
+        if (!this.enabled)
+            return false;
+        const run = this.benchmarkRuns.find((entry) => entry.runId === runId);
+        if (!run)
+            return false;
+        run.completedAt = report.completedAt;
+        run.report = report;
+        return true;
+    }
+    listBenchmarkRuns() {
+        return this.enabled ? this.benchmarkRuns.map((entry) => ({ ...entry, manifest: { ...entry.manifest } })) : [];
+    }
+    getBenchmarkRun(runId) {
+        const run = this.benchmarkRuns.find((entry) => entry.runId === runId);
+        return run
+            ? { ...run, manifest: { ...run.manifest }, report: run.report ? { ...run.report } : undefined }
+            : undefined;
+    }
     clearAll() {
         this.records = [];
+        this.benchmarkRuns = [];
     }
     exportData(format, filter = {}) {
         return serializeAttempts(this.enabled ? this.filtered(filter) : [], format);

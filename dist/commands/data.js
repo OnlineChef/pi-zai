@@ -2,6 +2,9 @@ import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { getMetricsStorage, sessionState } from "../state.js";
 import { clearLocalProjectSecret, projectIdForCwd } from "../storage/project-id.js";
+function resolveProjectId(cwd) {
+    return sessionState.projectId ?? projectIdForCwd(cwd);
+}
 const ACTIONS = [
     "status",
     "clear-project",
@@ -21,13 +24,14 @@ function formatBytes(bytes) {
         return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
-function formatStatus() {
+function formatStatus(cwd) {
     const storage = getMetricsStorage();
     if (!storage) {
         return "Local metrics storage is not initialized.";
     }
+    const projectId = resolveProjectId(cwd);
     const status = storage.getStatus();
-    const summary = storage.getUsageSummary({ projectId: sessionState.projectId });
+    const summary = storage.getUsageSummary({ projectId });
     const lines = [
         "Z.AI local metrics",
         `  Storage: ${status.kind}${status.degraded ? " (degraded)" : ""}`,
@@ -36,7 +40,7 @@ function formatStatus() {
         `  Detail rows: ${status.detailRows}`,
         `  Rollup rows: ${status.rollupRows}`,
         `  Benchmark rows: ${status.benchmarkRows}`,
-        `  Project hash: ${sessionState.projectId ?? "unknown"}`,
+        `  Project hash: ${projectId}`,
         `  Session hash: ${sessionState.sessionHash ?? "unknown"}`,
         `  Attempts (project): ${summary.attempts}`,
         `  Cache hit ratio (project): ${summary.cacheHitRatio > 0 ? `${(summary.cacheHitRatio * 100).toFixed(1)}%` : "n/a"}`,
@@ -60,10 +64,10 @@ export function registerZaiDataCommand(pi, _deps) {
             const normalized = action === "" ? "status" : action.toLowerCase();
             switch (normalized) {
                 case "status":
-                    ctx.ui.notify(formatStatus(), "info");
+                    ctx.ui.notify(formatStatus(ctx.cwd), "info");
                     return;
                 case "clear-project": {
-                    const projectId = sessionState.projectId ?? projectIdForCwd(ctx.cwd);
+                    const projectId = resolveProjectId(ctx.cwd);
                     storage.clearProject(projectId);
                     ctx.ui.notify(`Cleared local metrics for project ${projectId}.`, "info");
                     return;
@@ -90,7 +94,7 @@ export function registerZaiDataCommand(pi, _deps) {
                         return;
                     }
                     const format = normalized === "export-json" ? "json" : "csv";
-                    const projectId = sessionState.projectId ?? projectIdForCwd(ctx.cwd);
+                    const projectId = resolveProjectId(ctx.cwd);
                     const payload = storage.exportData(format, { projectId });
                     const target = resolve(ctx.cwd, pathArg);
                     writeFileSync(target, payload, "utf-8");

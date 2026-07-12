@@ -1,4 +1,5 @@
 import { getMetricsStorage, sessionState } from "../state.js";
+import { projectIdForCwd } from "../storage/project-id.js";
 import { EMPTY_TRANSPORT_SUMMARY } from "../storage/types.js";
 function formatLatency(label, value) {
     if (value === undefined)
@@ -6,11 +7,7 @@ function formatLatency(label, value) {
     return `  ${label}: ${value} ms`;
 }
 function formatTransportSummary(summary) {
-    const lines = [
-        "Z.AI transport summary (local)",
-        `  Attempts: ${summary.attempts}`,
-        `  Errors: ${summary.errors}`,
-    ];
+    const lines = ["Z.AI transport summary (local)", `  Attempts: ${summary.attempts}`, `  Errors: ${summary.errors}`];
     const latencyLines = [
         formatLatency("Avg request to headers", summary.avgRequestToHeadersMs),
         formatLatency("Avg request to first delta", summary.avgRequestToFirstDeltaMs),
@@ -35,7 +32,8 @@ export function registerZaiTransportCommand(pi) {
                 ctx.ui.notify("Local metrics storage is not initialized.", "warning");
                 return;
             }
-            const summary = storage.getTransportSummary({ projectId: sessionState.projectId }) ?? {
+            const projectId = sessionState.projectId ?? projectIdForCwd(ctx.cwd);
+            const summary = storage.getTransportSummary({ projectId }) ?? {
                 ...EMPTY_TRANSPORT_SUMMARY,
             };
             ctx.ui.notify(formatTransportSummary(summary), "info");

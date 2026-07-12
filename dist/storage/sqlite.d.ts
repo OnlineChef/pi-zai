@@ -1,3 +1,4 @@
+import type { BenchmarkRunManifest, BenchmarkRunRecord, BenchmarkRunReport } from "../benchmark/types.ts";
 import { type CleanupResult, type MetricsExportFormat, type MetricsStorage, type ProviderAttemptRecord, type StorageStatus, type TransportSummary, type UsageFilter, type UsageSummary } from "./types.ts";
 export interface NodeSqliteStorageOptions {
     databasePath: string;
@@ -24,6 +25,10 @@ export declare class NodeSqliteStorage implements MetricsStorage {
     clearProject(projectId: string): void;
     clearDetails(): void;
     clearBenchmarks(): void;
+    startBenchmarkRun(manifest: BenchmarkRunManifest): void;
+    completeBenchmarkRun(runId: string, report: BenchmarkRunReport): boolean;
+    listBenchmarkRuns(): BenchmarkRunRecord[];
+    getBenchmarkRun(runId: string): BenchmarkRunRecord | undefined;
     clearAll(): void;
     exportData(format: MetricsExportFormat, filter?: UsageFilter): string;
     vacuum(): void;

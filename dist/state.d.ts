@@ -22,6 +22,7 @@ export interface ZaiSessionState {
      * prefix cache warm, raising cache hit rates.
      */
     sessionAffinityId: string;
+    activeBenchmarkRunId: string | undefined;
     promptStability: {
         stableLineCount: number;
         volatileLineCount: number;

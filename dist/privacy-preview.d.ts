@@ -1,6 +1,6 @@
 import type { ZaiConfig } from "./config.ts";
-import type { UsageSummary } from "./storage/types.ts";
 import type { ZaiSessionState } from "./state.ts";
+import type { UsageSummary } from "./storage/types.ts";
 export type PrivacyPreviewSection = {
     title: string;
     lines: string[];

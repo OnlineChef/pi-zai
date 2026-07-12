@@ -90,6 +90,17 @@ function classifyTransportError(message, httpStatus) {
         return "unknown_transport";
     return undefined;
 }
+function ensureAttemptTrackingForTurnEnd() {
+    if (getAttemptTracker().hasInFlight())
+        return;
+    const { queryId, requestId, attempt } = getQueryCorrelation().nextAttempt();
+    getAttemptTracker().beginAttempt({
+        queryId,
+        requestId,
+        attempt,
+        payloadFingerprint: "no-before-provider-request",
+    });
+}
 async function ensureMetricsStorage(config, warn) {
     setMetricsStorage(await createMetricsStorage(config.metrics, warn));
 }
@@ -105,6 +116,7 @@ export default function piZaiExtension(pi) {
             resetTpsMetrics();
             resetCorrelationState();
             sessionState.sessionAffinityId = newSessionAffinityId();
+            sessionState.activeBenchmarkRunId = undefined;
         }
         sessionState.projectId = projectIdForCwd(ctx.cwd);
         sessionState.sessionHash = hashSessionId(ctx.sessionManager.getSessionId());
@@ -127,6 +139,7 @@ export default function piZaiExtension(pi) {
     pi.on("session_shutdown", async (_event, ctx) => {
         resetCacheMetrics();
         resetTpsMetrics();
+        sessionState.activeBenchmarkRunId = undefined;
         setMetricsStorage(undefined);
         clearZaiStatus(ctx);
     });
@@ -164,15 +177,20 @@ export default function piZaiExtension(pi) {
     pi.on("before_agent_start", async (event, ctx) => {
         if (!ctx.model || !isZaiModel(ctx.model))
             return;
-        getQueryCorrelation().beginQuery();
+        const queryId = getQueryCorrelation().beginQuery();
+        getAttemptTracker().prepareQueryAttempt(queryId);
         const toolNames = pi.getActiveTools().map((name) => ({ name }));
-        updateCacheSegment(ctx.model, event.systemPrompt, toolNames);
-        sessionState.promptStability = snapshotPromptStability(event.systemPrompt);
+        let systemPromptForMetrics = event.systemPrompt;
         if (config.promptStabilityMode === "safe") {
             const normalized = applySafePromptNormalization(event.systemPrompt);
             if (normalized !== undefined) {
-                return { systemPrompt: normalized };
+                systemPromptForMetrics = normalized;
             }
+        }
+        updateCacheSegment(ctx.model, systemPromptForMetrics, toolNames);
+        sessionState.promptStability = snapshotPromptStability(systemPromptForMetrics);
+        if (config.promptStabilityMode === "safe" && systemPromptForMetrics !== event.systemPrompt) {
+            return { systemPrompt: systemPromptForMetrics };
         }
     });
     pi.on("turn_end", async (event, ctx) => {
@@ -181,6 +199,7 @@ export default function piZaiExtension(pi) {
             getCacheMetricsStore().record(ctx.model, event.message.usage);
             const assistant = event.message;
             const segment = getCacheMetricsStore().get()?.segment;
+            ensureAttemptTrackingForTurnEnd();
             const record = getAttemptTracker().buildRecord({
                 projectId: sessionState.projectId ?? projectIdForCwd(ctx.cwd),
                 sessionHash: sessionState.sessionHash ?? hashSessionId(ctx.sessionManager.getSessionId()),
@@ -233,12 +252,21 @@ export default function piZaiExtension(pi) {
             return;
         }
         const { queryId, requestId, attempt } = getQueryCorrelation().nextAttempt();
-        getAttemptTracker().beginAttempt({
-            queryId,
-            requestId,
-            attempt,
-            payloadFingerprint: fingerprintPayload(event.payload),
-        });
+        if (attempt > 1 || !getAttemptTracker().hasInFlight()) {
+            getAttemptTracker().beginAttempt({
+                queryId,
+                requestId,
+                attempt,
+                payloadFingerprint: fingerprintPayload(event.payload),
+            });
+        }
+        else {
+            getAttemptTracker().armProviderAttempt({
+                requestId,
+                attempt,
+                payloadFingerprint: fingerprintPayload(event.payload),
+            });
+        }
         return normalizeZaiThinkingPayload(event.payload, config);
     });
     pi.on("after_provider_response", async (event, ctx) => {
