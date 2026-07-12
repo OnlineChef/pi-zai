@@ -17,7 +17,7 @@ import {
 } from "./privacy-preview.ts";
 import { snapshotPromptStability } from "./prompt-stability.ts";
 import { EMPTY_USAGE_SUMMARY } from "./storage/types.ts";
-import { writeTelemetryConsent } from "./telemetry/consent.ts";
+import { writeTelemetryConsent, clearTelemetryConsent } from "./telemetry/consent.ts";
 import type { AggregateTelemetryPayload } from "./telemetry/types.ts";
 import { uploadAggregatePayload } from "./telemetry/uploader.ts";
 
@@ -64,6 +64,7 @@ describe("extension boundary (runtime)", () => {
 	let fetchSpy: ReturnType<typeof vi.spyOn>;
 
 	beforeEach(() => {
+		clearTelemetryConsent();
 		fetchSpy = vi
 			.spyOn(globalThis, "fetch")
 			.mockResolvedValue(
@@ -72,6 +73,7 @@ describe("extension boundary (runtime)", () => {
 	});
 
 	afterEach(() => {
+		clearTelemetryConsent();
 		fetchSpy.mockRestore();
 	});
 
@@ -162,8 +164,9 @@ describe("extension boundary (runtime)", () => {
 			EMPTY_USAGE_SUMMARY,
 		);
 
-		expect(preview.status).toBe("aggregate-ready");
+		expect(preview.status).toBe("preview-only-not-sent");
 		expect(text).toContain("mode: aggregate");
+		expect(text).toContain("uploads: disabled");
 		expect(fetchSpy).not.toHaveBeenCalled();
 	});
 
