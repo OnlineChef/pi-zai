@@ -17,7 +17,10 @@ import {
 } from "./privacy-preview.ts";
 import { snapshotPromptStability } from "./prompt-stability.ts";
 import { EMPTY_USAGE_SUMMARY } from "./storage/types.ts";
-import { writeTelemetryConsent, clearTelemetryConsent } from "./telemetry/consent.ts";
+import {
+	clearTelemetryConsent,
+	writeTelemetryConsent,
+} from "./telemetry/consent.ts";
 import type { AggregateTelemetryPayload } from "./telemetry/types.ts";
 import { uploadAggregatePayload } from "./telemetry/uploader.ts";
 
