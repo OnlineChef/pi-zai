@@ -10,7 +10,9 @@ export function readTelemetryConsent() {
         return undefined;
     try {
         const parsed = JSON.parse(readFileSync(path, "utf-8"));
-        return parsed?.schema === 1 && typeof parsed.optedInAt === "number" ? parsed : undefined;
+        return parsed?.schema === 1 && typeof parsed.optedInAt === "number"
+            ? parsed
+            : undefined;
     }
     catch {
         return undefined;

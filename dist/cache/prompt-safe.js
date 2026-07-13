@@ -17,8 +17,12 @@ export function applySafePromptNormalization(systemPrompt) {
         }
     }
     const stablePart = keptStable.join("\n").trimEnd();
-    const dynamicBody = [dynamic.trim(), movedVolatile.join("\n").trim()].filter((part) => part.length > 0).join("\n");
-    const normalized = dynamicBody.length > 0 ? appendDynamicContext(stablePart, dynamicBody) : stablePart;
+    const dynamicBody = [dynamic.trim(), movedVolatile.join("\n").trim()]
+        .filter((part) => part.length > 0)
+        .join("\n");
+    const normalized = dynamicBody.length > 0
+        ? appendDynamicContext(stablePart, dynamicBody)
+        : stablePart;
     if (normalized === systemPrompt) {
         return undefined;
     }

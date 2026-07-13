@@ -26,6 +26,15 @@ function formatTransportSummary(summary: TransportSummary): string {
 		),
 		formatKeyValue("Avg total", formatMs(summary.avgTotalMs)),
 	];
+	if (summary.totalToolCalls > 0) {
+		lines.push(
+			formatKeyValue(
+				"Tool calls",
+				`${summary.totalToolCalls}${summary.totalToolErrors > 0 ? ` (${summary.totalToolErrors} errors)` : ""}`,
+			),
+			formatKeyValue("Avg tool duration", formatMs(summary.avgToolDurationMs)),
+		);
+	}
 
 	const categories = Object.entries(summary.errorCategories).sort(
 		(left, right) => right[1] - left[1],

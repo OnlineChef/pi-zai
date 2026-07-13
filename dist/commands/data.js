@@ -1,7 +1,9 @@
 import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { getMetricsStorage, sessionState } from "../state.js";
-import { clearLocalProjectSecret, projectIdForCwd } from "../storage/project-id.js";
+import { clearLocalProjectSecret, projectIdForCwd, } from "../storage/project-id.js";
+import { formatBytes, formatHeading, formatKeyValue, formatSection, joinCommandLines, } from "./format.js";
+import { formatPercent } from "./helpers.js";
 function resolveProjectId(cwd) {
     return sessionState.projectId ?? projectIdForCwd(cwd);
 }
@@ -15,15 +17,6 @@ const ACTIONS = [
     "export-csv",
     "vacuum",
 ];
-function formatBytes(bytes) {
-    if (bytes === undefined)
-        return "unknown";
-    if (bytes < 1024)
-        return `${bytes} B`;
-    if (bytes < 1024 * 1024)
-        return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
 function formatStatus(cwd) {
     const storage = getMetricsStorage();
     if (!storage) {
@@ -32,27 +25,42 @@ function formatStatus(cwd) {
     const projectId = resolveProjectId(cwd);
     const status = storage.getStatus();
     const summary = storage.getUsageSummary({ projectId });
+    const transport = storage.getTransportSummary({ projectId });
     const lines = [
-        "Z.AI local metrics",
-        `  Storage: ${status.kind}${status.degraded ? " (degraded)" : ""}`,
-        `  Location: ${status.location ?? "memory"}`,
-        `  Database size: ${formatBytes(status.databaseBytes)}`,
-        `  Detail rows: ${status.detailRows}`,
-        `  Rollup rows: ${status.rollupRows}`,
-        `  Benchmark rows: ${status.benchmarkRows}`,
-        `  Project hash: ${projectId}`,
-        `  Session hash: ${sessionState.sessionHash ?? "unknown"}`,
-        `  Attempts (project): ${summary.attempts}`,
-        `  Cache hit ratio (project): ${summary.cacheHitRatio > 0 ? `${(summary.cacheHitRatio * 100).toFixed(1)}%` : "n/a"}`,
+        ...formatHeading("Z.AI local metrics"),
+        formatKeyValue("Storage", `${status.kind}${status.degraded ? " (degraded)" : ""}`),
+        formatKeyValue("Location", status.location ?? "memory"),
+        formatKeyValue("Database size", formatBytes(status.databaseBytes)),
+        ...formatSection("Rows", [
+            `Detail: ${status.detailRows}`,
+            `Rollup: ${status.rollupRows}`,
+            `Benchmark: ${status.benchmarkRows}`,
+        ]),
+        ...formatSection("Scope", [
+            `Project hash: ${projectId}`,
+            `Session hash: ${sessionState.sessionHash ?? "unknown"}`,
+        ]),
+        ...formatSection("Project usage", [
+            `Attempts: ${summary.attempts}`,
+            `Cache hit ratio: ${summary.cacheHitRatio > 0 ? formatPercent(summary.cacheHitRatio) : "n/a"}`,
+            ...(transport.totalToolCalls > 0
+                ? [
+                    `Tool calls: ${transport.totalToolCalls}${transport.totalToolErrors > 0 ? ` (${transport.totalToolErrors} errors)` : ""}`,
+                    `Avg tool duration: ${transport.avgToolDurationMs !== undefined ? `${transport.avgToolDurationMs} ms` : "n/a"}`,
+                ]
+                : []),
+        ]),
     ];
-    return lines.join("\n");
+    return joinCommandLines(lines);
 }
 export function registerZaiDataCommand(pi, _deps) {
     pi.registerCommand("zai-data", {
         description: "Local Z.AI metrics storage (status, wipe, export)",
         getArgumentCompletions: (prefix) => {
             const matches = ACTIONS.filter((value) => value.startsWith(prefix));
-            return matches.length > 0 ? matches.map((value) => ({ value, label: value })) : null;
+            return matches.length > 0
+                ? matches.map((value) => ({ value, label: value }))
+                : null;
         },
         handler: async (args, ctx) => {
             const storage = getMetricsStorage();

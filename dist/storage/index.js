@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
 import { MemoryStorage } from "./memory.js";
-export { clearLocalProjectSecret, loadOrCreateLocalSecret, localSecretPath, projectIdForCwd } from "./project-id.js";
+export { clearLocalProjectSecret, loadOrCreateLocalSecret, localSecretPath, projectIdForCwd, } from "./project-id.js";
 export { MemoryStorage } from "./memory.js";
 export * from "./types.js";
 export function defaultMetricsDatabasePath() {
@@ -9,7 +9,10 @@ export function defaultMetricsDatabasePath() {
 }
 export async function createMetricsStorage(config, onWarning) {
     if (config.mode === "off")
-        return new MemoryStorage({ enabled: false, retentionDays: config.retentionDays });
+        return new MemoryStorage({
+            enabled: false,
+            retentionDays: config.retentionDays,
+        });
     if (config.mode === "memory")
         return new MemoryStorage({ retentionDays: config.retentionDays });
     try {

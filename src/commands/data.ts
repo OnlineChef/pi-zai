@@ -40,6 +40,7 @@ function formatStatus(cwd: string): string {
 	const projectId = resolveProjectId(cwd);
 	const status = storage.getStatus();
 	const summary = storage.getUsageSummary({ projectId });
+	const transport = storage.getTransportSummary({ projectId });
 	const lines = [
 		...formatHeading("Z.AI local metrics"),
 		formatKeyValue(
@@ -60,6 +61,12 @@ function formatStatus(cwd: string): string {
 		...formatSection("Project usage", [
 			`Attempts: ${summary.attempts}`,
 			`Cache hit ratio: ${summary.cacheHitRatio > 0 ? formatPercent(summary.cacheHitRatio) : "n/a"}`,
+			...(transport.totalToolCalls > 0
+				? [
+						`Tool calls: ${transport.totalToolCalls}${transport.totalToolErrors > 0 ? ` (${transport.totalToolErrors} errors)` : ""}`,
+						`Avg tool duration: ${transport.avgToolDurationMs !== undefined ? `${transport.avgToolDurationMs} ms` : "n/a"}`,
+					]
+				: []),
 		]),
 	];
 	return joinCommandLines(lines);

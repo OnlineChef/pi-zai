@@ -1,9 +1,9 @@
-import { buildCompactionInstructions, ZAI_COMPACTION_SECTIONS } from "../cache/compaction.js";
+import { buildCompactionInstructions, ZAI_COMPACTION_SECTIONS, } from "../cache/compaction.js";
 import { canonicalStableSystemPrefix } from "../cache/context-policy.js";
 import { fingerprintToolset } from "../cache/fingerprint.js";
 import { formatProbeSummary, formatRecommendedRetrySettingsJson, formatRetrySettingsAdvice, probeChatEndpoint, readPiRetrySettings, } from "../resilience.js";
 import { inferEndpoint, sessionState } from "../state.js";
-import { describeThinkingPayload, formatCredentialSource, getZaiCompat, requireZaiModel } from "./helpers.js";
+import { describeThinkingPayload, formatCredentialSource, getZaiCompat, requireZaiModel, } from "./helpers.js";
 const DOCTOR_THINKING_LEVELS = ["off", "high", "max"];
 function statusIcon(status) {
     switch (status) {
@@ -19,7 +19,8 @@ function statusIcon(status) {
 }
 /** GLM-5.2 is the only Z.AI model exposing reasoning_effort, so it is the only one with a thinkingLevelMap. */
 function isReasoningEffortModel(model) {
-    return model?.compat?.supportsReasoningEffort === true;
+    return (model?.compat
+        ?.supportsReasoningEffort === true);
 }
 function glm52ThinkingMapOk(model) {
     if (!model?.thinkingLevelMap)
@@ -29,7 +30,7 @@ function glm52ThinkingMapOk(model) {
         map.low === null &&
         map.medium === null &&
         map.high === "high" &&
-        map.xhigh === null &&
+        map.xhigh === "max" &&
         map.max === "max");
 }
 function hasPlatformPricing(model) {
@@ -139,11 +140,15 @@ export function registerZaiDoctorCommand(pi, deps) {
             checks.push({
                 name: "Built-in Z.AI provider",
                 status: codingModel ? "pass" : "fail",
-                detail: codingModel ? "zai/glm-5.2 present" : "zai/glm-5.2 missing from registry",
+                detail: codingModel
+                    ? "zai/glm-5.2 present"
+                    : "zai/glm-5.2 missing from registry",
             });
             checks.push({
                 name: "Platform provider (optional)",
-                status: deps.isPlatformProviderRegistered(ctx) && platformModel ? "pass" : "skip",
+                status: deps.isPlatformProviderRegistered(ctx) && platformModel
+                    ? "pass"
+                    : "skip",
                 detail: platformModel
                     ? "zai-platform/glm-5.2 present in models.json"
                     : "Not registered by pi-zai; add zai-platform manually via models.json if needed",
@@ -165,7 +170,7 @@ export function registerZaiDoctorCommand(pi, deps) {
                     name: "GLM-5.2 thinkingLevelMap",
                     status: glm52ThinkingMapOk(thinkingModel) ? "pass" : "warn",
                     detail: glm52ThinkingMapOk(thinkingModel)
-                        ? "off/high/max exposed; minimal/low/medium/xhigh hidden"
+                        ? "off/high/xhigh exposed; xhigh maps to Z.AI `max`"
                         : "Unexpected thinkingLevelMap on active or default model",
                 });
             }
@@ -219,14 +224,19 @@ export function registerZaiDoctorCommand(pi, deps) {
             const stableSample = canonicalStableSystemPrefix("Project rules\nCurrent git status: dirty");
             checks.push({
                 name: "Stable system prefix",
-                status: stableSample.length > 0 && !stableSample.includes("git status") ? "pass" : "fail",
+                status: stableSample.length > 0 && !stableSample.includes("git status")
+                    ? "pass"
+                    : "fail",
                 detail: "Volatile git/timestamp lines excluded from canonical prefix",
             });
             const toolFingerprint = fingerprintToolset([
                 {
                     name: "read",
                     description: "Read files",
-                    parameters: { type: "object", properties: { path: { type: "string" } } },
+                    parameters: {
+                        type: "object",
+                        properties: { path: { type: "string" } },
+                    },
                 },
             ]);
             checks.push({

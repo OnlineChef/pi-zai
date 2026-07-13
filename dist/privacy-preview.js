@@ -37,7 +37,9 @@ export function buildAggregateTelemetryPreview(config, extensionVersion, session
     const hitRatio = usage.cacheHitRatio;
     return {
         schema: 1,
-        status: isTelemetryUploadEnabled(config) ? "aggregate-ready" : "preview-only-not-sent",
+        status: isTelemetryUploadEnabled(config)
+            ? "aggregate-ready"
+            : "preview-only-not-sent",
         telemetryMode: config.telemetryMode,
         extensionVersion,
         model: sessionState.modelId ?? "unknown",
@@ -86,6 +88,10 @@ export function formatPrivacyPreview(config, extensionVersion, sessionState, usa
             ],
         },
     ];
-    return ["pi-zai privacy preview", "", ...sections.flatMap((section) => [section.title, ...section.lines, ""])].join("\n");
+    return [
+        "pi-zai privacy preview",
+        "",
+        ...sections.flatMap((section) => [section.title, ...section.lines, ""]),
+    ].join("\n");
 }
 //# sourceMappingURL=privacy-preview.js.map

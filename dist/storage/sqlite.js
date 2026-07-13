@@ -3,7 +3,7 @@ import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { endpointKindFromProvider, mergeAnonymousDailySummaries, summarizeAnonymousDaily, utcDayFromMs, } from "./anonymous-daily.js";
 import { MemoryStorage } from "./memory.js";
-import { INITIAL_SCHEMA_SQL, SCHEMA_VERSION } from "./migrations.js";
+import { INITIAL_SCHEMA_SQL, SCHEMA_MIGRATIONS, SCHEMA_VERSION, } from "./migrations.js";
 import { serializeAttempts, } from "./types.js";
 const INSERT_ATTEMPT_SQL = `
 INSERT INTO provider_attempts (
@@ -11,12 +11,14 @@ INSERT INTO provider_attempts (
   provider, model, endpoint_kind, thinking_level, pi_version, extension_version,
   system_fingerprint, toolset_fingerprint, payload_fingerprint,
   input_tokens, cache_read_tokens, cache_write_tokens, output_tokens,
-  request_to_headers_ms, request_to_first_delta_ms, total_ms,
-  http_status, error_category, estimated_api_cost_microusd
+  request_to_headers_ms, request_to_first_delta_ms, request_to_first_tool_delta_ms, total_ms,
+  http_status, error_category, estimated_api_cost_microusd,
+  tool_calls_in_turn, tool_errors_in_turn, tool_duration_ms_total
 ) VALUES (
   ?, ?, ?, ?, ?, ?,
   ?, ?, ?, ?, ?, ?,
   ?, ?, ?,
+  ?, ?, ?, ?,
   ?, ?, ?, ?,
   ?, ?, ?,
   ?, ?, ?
@@ -71,6 +73,7 @@ export class NodeSqliteStorage {
         database.exec("PRAGMA auto_vacuum = INCREMENTAL;");
         database.exec("PRAGMA busy_timeout = 25;");
         database.exec(INITIAL_SCHEMA_SQL);
+        migrateSchema(database);
         database
             .prepare("INSERT INTO schema_meta(key, value) VALUES ('schema_version', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
             .run(String(SCHEMA_VERSION));
@@ -84,7 +87,7 @@ export class NodeSqliteStorage {
         if (!this.database || !this.insertAttempt)
             return;
         try {
-            this.insertAttempt.run(record.occurredAt, record.projectId ?? null, record.sessionHash ?? null, record.queryId ?? null, record.requestId ?? null, record.attempt, record.provider, record.model, record.endpointKind, record.thinkingLevel ?? null, record.piVersion ?? null, record.extensionVersion, record.systemFingerprint ?? null, record.toolsetFingerprint ?? null, record.payloadFingerprint ?? null, record.inputTokens ?? null, record.cacheReadTokens ?? null, record.cacheWriteTokens ?? null, record.outputTokens ?? null, record.requestToHeadersMs ?? null, record.requestToFirstDeltaMs ?? null, record.totalMs ?? null, record.httpStatus ?? null, record.errorCategory ?? null, record.estimatedApiCostMicrousd ?? null);
+            this.insertAttempt.run(record.occurredAt, record.projectId ?? null, record.sessionHash ?? null, record.queryId ?? null, record.requestId ?? null, record.attempt, record.provider, record.model, record.endpointKind, record.thinkingLevel ?? null, record.piVersion ?? null, record.extensionVersion, record.systemFingerprint ?? null, record.toolsetFingerprint ?? null, record.payloadFingerprint ?? null, record.inputTokens ?? null, record.cacheReadTokens ?? null, record.cacheWriteTokens ?? null, record.outputTokens ?? null, record.requestToHeadersMs ?? null, record.requestToFirstDeltaMs ?? null, record.requestToFirstToolDeltaMs ?? null, record.totalMs ?? null, record.httpStatus ?? null, record.errorCategory ?? null, record.estimatedApiCostMicrousd ?? null, record.toolCallsInTurn ?? null, record.toolErrorsInTurn ?? null, record.toolDurationMsTotal ?? null);
         }
         catch (error) {
             this.degrade(error);
@@ -125,8 +128,10 @@ SELECT
 FROM daily_rollups${rollupQuery.where}`)
                 .get(...rollupQuery.values);
             const inputTokens = numberValue(detail.input_tokens) + numberValue(rollup.input_tokens);
-            const cacheReadTokens = numberValue(detail.cache_read_tokens) + numberValue(rollup.cache_read_tokens);
-            const cacheWriteTokens = numberValue(detail.cache_write_tokens) + numberValue(rollup.cache_write_tokens);
+            const cacheReadTokens = numberValue(detail.cache_read_tokens) +
+                numberValue(rollup.cache_read_tokens);
+            const cacheWriteTokens = numberValue(detail.cache_write_tokens) +
+                numberValue(rollup.cache_write_tokens);
             const totalPrompt = inputTokens + cacheReadTokens + cacheWriteTokens;
             return {
                 attempts: numberValue(detail.attempts) + numberValue(rollup.attempts),
@@ -135,7 +140,8 @@ FROM daily_rollups${rollupQuery.where}`)
                 cacheReadTokens,
                 cacheWriteTokens,
                 outputTokens: numberValue(detail.output_tokens) + numberValue(rollup.output_tokens),
-                estimatedApiCostMicrousd: numberValue(detail.estimated_api_cost_microusd) + numberValue(rollup.estimated_api_cost_microusd),
+                estimatedApiCostMicrousd: numberValue(detail.estimated_api_cost_microusd) +
+                    numberValue(rollup.estimated_api_cost_microusd),
                 cacheHitRatio: totalPrompt > 0 ? cacheReadTokens / totalPrompt : 0,
                 firstOccurredAt: earliestTimestamp(optionalNumber(detail.first_occurred_at), dayToTimestamp(optionalString(rollup.first_day))),
                 lastOccurredAt: latestTimestamp(optionalNumber(detail.last_occurred_at), dayToTimestamp(optionalString(rollup.last_day))),
@@ -158,7 +164,11 @@ SELECT
   COALESCE(SUM(CASE WHEN error_category IS NOT NULL OR http_status >= 400 THEN 1 ELSE 0 END), 0) AS errors,
   AVG(request_to_headers_ms) AS avg_request_to_headers_ms,
   AVG(request_to_first_delta_ms) AS avg_request_to_first_delta_ms,
-  AVG(total_ms) AS avg_total_ms
+  AVG(request_to_first_tool_delta_ms) AS avg_request_to_first_tool_delta_ms,
+  AVG(total_ms) AS avg_total_ms,
+  COALESCE(SUM(tool_calls_in_turn), 0) AS total_tool_calls,
+  COALESCE(SUM(tool_errors_in_turn), 0) AS total_tool_errors,
+  AVG(tool_duration_ms_total) AS avg_tool_duration_ms
 FROM provider_attempts${detailQuery.where}`)
                 .get(...detailQuery.values);
             const rollupQuery = buildRollupWhere(filter);
@@ -188,7 +198,11 @@ GROUP BY error_category`)
                 errors: numberValue(row.errors) + numberValue(rollup.errors),
                 avgRequestToHeadersMs: roundOptionalAverage(row.avg_request_to_headers_ms),
                 avgRequestToFirstDeltaMs: roundOptionalAverage(row.avg_request_to_first_delta_ms),
+                avgRequestToFirstToolDeltaMs: roundOptionalAverage(row.avg_request_to_first_tool_delta_ms),
                 avgTotalMs: roundOptionalAverage(row.avg_total_ms),
+                totalToolCalls: numberValue(row.total_tool_calls),
+                totalToolErrors: numberValue(row.total_tool_errors),
+                avgToolDurationMs: roundOptionalAverage(row.avg_tool_duration_ms),
                 errorCategories,
             };
         }
@@ -200,7 +214,12 @@ GROUP BY error_category`)
     getStatus() {
         if (!this.database) {
             const fallback = this.fallback.getStatus();
-            return { ...fallback, kind: "sqlite", location: this.options.databasePath, degraded: true };
+            return {
+                ...fallback,
+                kind: "sqlite",
+                location: this.options.databasePath,
+                degraded: true,
+            };
         }
         try {
             const detailRows = count(this.database, "provider_attempts");
@@ -216,14 +235,21 @@ GROUP BY error_category`)
                 detailRows,
                 rollupRows,
                 benchmarkRows,
-                lastCleanupAt: lastCleanup ? optionalNumber(lastCleanup.value) : undefined,
+                lastCleanupAt: lastCleanup
+                    ? optionalNumber(lastCleanup.value)
+                    : undefined,
                 degraded: this.degraded,
             };
         }
         catch (error) {
             this.degrade(error);
             const fallback = this.fallback.getStatus();
-            return { ...fallback, kind: "sqlite", location: this.options.databasePath, degraded: true };
+            return {
+                ...fallback,
+                kind: "sqlite",
+                location: this.options.databasePath,
+                degraded: true,
+            };
         }
     }
     runCleanup(now, force = false) {
@@ -233,9 +259,16 @@ GROUP BY error_category`)
             const lastCleanupRow = this.database
                 .prepare("SELECT value FROM schema_meta WHERE key = 'last_cleanup_at'")
                 .get();
-            const lastCleanupAt = lastCleanupRow ? numberValue(lastCleanupRow.value) : 0;
+            const lastCleanupAt = lastCleanupRow
+                ? numberValue(lastCleanupRow.value)
+                : 0;
             if (!force && sameUtcDay(lastCleanupAt, now)) {
-                return { attemptsDeleted: 0, rollupsDeleted: 0, benchmarksDeleted: 0, ran: false };
+                return {
+                    attemptsDeleted: 0,
+                    rollupsDeleted: 0,
+                    benchmarksDeleted: 0,
+                    ran: false,
+                };
             }
             const detailsCutoff = now - this.options.retentionDays * 86_400_000;
             const rollupCutoffDay = new Date(now - this.options.rollupRetentionDays * 86_400_000)
@@ -247,9 +280,15 @@ GROUP BY error_category`)
             let rollupsDeleted = 0;
             let benchmarksDeleted = 0;
             try {
-                this.database.prepare(ROLLUP_ATTEMPTS_OLDER_THAN_SQL).run(detailsCutoff);
-                attemptsDeleted = Number(this.database.prepare("DELETE FROM provider_attempts WHERE occurred_at < ?").run(detailsCutoff).changes);
-                rollupsDeleted = Number(this.database.prepare("DELETE FROM daily_rollups WHERE day < ?").run(rollupCutoffDay).changes);
+                this.database
+                    .prepare(ROLLUP_ATTEMPTS_OLDER_THAN_SQL)
+                    .run(detailsCutoff);
+                attemptsDeleted = Number(this.database
+                    .prepare("DELETE FROM provider_attempts WHERE occurred_at < ?")
+                    .run(detailsCutoff).changes);
+                rollupsDeleted = Number(this.database
+                    .prepare("DELETE FROM daily_rollups WHERE day < ?")
+                    .run(rollupCutoffDay).changes);
                 benchmarksDeleted = Number(this.database
                     .prepare("DELETE FROM benchmark_runs WHERE completed_at IS NULL AND created_at < ?")
                     .run(abandonedBenchmarkCutoff).changes);
@@ -273,8 +312,12 @@ GROUP BY error_category`)
     }
     clearProject(projectId) {
         this.executeOrDegrade(() => {
-            this.database?.prepare("DELETE FROM provider_attempts WHERE project_id = ?").run(projectId);
-            this.database?.prepare("DELETE FROM daily_rollups WHERE project_id = ?").run(projectId);
+            this.database
+                ?.prepare("DELETE FROM provider_attempts WHERE project_id = ?")
+                .run(projectId);
+            this.database
+                ?.prepare("DELETE FROM daily_rollups WHERE project_id = ?")
+                .run(projectId);
         });
         this.fallback.clearProject(projectId);
     }
@@ -368,8 +411,9 @@ GROUP BY error_category`)
   provider, model, endpoint_kind, thinking_level, pi_version, extension_version,
   system_fingerprint, toolset_fingerprint, payload_fingerprint,
   input_tokens, cache_read_tokens, cache_write_tokens, output_tokens,
-  request_to_headers_ms, request_to_first_delta_ms, total_ms,
-  http_status, error_category, estimated_api_cost_microusd
+  request_to_headers_ms, request_to_first_delta_ms, request_to_first_tool_delta_ms, total_ms,
+  http_status, error_category, estimated_api_cost_microusd,
+  tool_calls_in_turn, tool_errors_in_turn, tool_duration_ms_total
 FROM provider_attempts${where}
 ORDER BY occurred_at ASC, id ASC`)
                 .all(...values);
@@ -488,7 +532,9 @@ ORDER BY day ASC`)
         if (!this.database)
             return this.fallback.isTelemetryDayUploaded(day);
         try {
-            const row = this.database.prepare("SELECT day FROM telemetry_uploads WHERE day = ?").get(day);
+            const row = this.database
+                .prepare("SELECT day FROM telemetry_uploads WHERE day = ?")
+                .get(day);
             return row !== undefined;
         }
         catch (error) {
@@ -530,10 +576,14 @@ ORDER BY day ASC`)
         }
     }
     enforceSizeLimit(now) {
-        if (!this.database || databaseFootprint(this.options.databasePath) <= this.options.maxDatabaseBytes)
+        if (!this.database ||
+            databaseFootprint(this.options.databasePath) <=
+                this.options.maxDatabaseBytes)
             return;
         const preserveSince = now - 7 * 86_400_000;
-        for (let batch = 0; batch < 20 && databaseFootprint(this.options.databasePath) > this.options.maxDatabaseBytes; batch += 1) {
+        for (let batch = 0; batch < 20 &&
+            databaseFootprint(this.options.databasePath) >
+                this.options.maxDatabaseBytes; batch += 1) {
             this.database.prepare(ROLLUP_ATTEMPTS_OLDER_THAN_SQL).run(preserveSince);
             const result = this.database
                 .prepare("DELETE FROM provider_attempts WHERE id IN (SELECT id FROM provider_attempts WHERE occurred_at < ? ORDER BY occurred_at ASC LIMIT 500)")
@@ -582,7 +632,10 @@ function buildWhere(filter) {
         clauses.push("occurred_at >= ?");
         values.push(filter.since);
     }
-    return { where: clauses.length > 0 ? ` WHERE ${clauses.join(" AND ")}` : "", values };
+    return {
+        where: clauses.length > 0 ? ` WHERE ${clauses.join(" AND ")}` : "",
+        values,
+    };
 }
 function buildRollupWhere(filter) {
     const clauses = [];
@@ -595,7 +648,10 @@ function buildRollupWhere(filter) {
         clauses.push("day >= ?");
         values.push(new Date(filter.since).toISOString().slice(0, 10));
     }
-    return { where: clauses.length > 0 ? ` WHERE ${clauses.join(" AND ")}` : "", values };
+    return {
+        where: clauses.length > 0 ? ` WHERE ${clauses.join(" AND ")}` : "",
+        values,
+    };
 }
 function rowToBenchmarkRun(row) {
     const manifest = JSON.parse(String(row.manifest_json));
@@ -636,14 +692,39 @@ function rowToRecord(row) {
         outputTokens: optionalNumber(row.output_tokens),
         requestToHeadersMs: optionalNumber(row.request_to_headers_ms),
         requestToFirstDeltaMs: optionalNumber(row.request_to_first_delta_ms),
+        requestToFirstToolDeltaMs: optionalNumber(row.request_to_first_tool_delta_ms),
         totalMs: optionalNumber(row.total_ms),
         httpStatus: optionalNumber(row.http_status),
         errorCategory: optionalString(row.error_category),
         estimatedApiCostMicrousd: optionalNumber(row.estimated_api_cost_microusd),
+        toolCallsInTurn: optionalNumber(row.tool_calls_in_turn),
+        toolErrorsInTurn: optionalNumber(row.tool_errors_in_turn),
+        toolDurationMsTotal: optionalNumber(row.tool_duration_ms_total),
     };
 }
+function migrateSchema(database) {
+    const current = Number(database
+        .prepare("SELECT value FROM schema_meta WHERE key = 'schema_version'")
+        .get()?.value ?? 1);
+    for (let version = current + 1; version <= SCHEMA_VERSION; version += 1) {
+        const statements = SCHEMA_MIGRATIONS[version] ?? [];
+        for (const statement of statements) {
+            try {
+                database.exec(statement);
+            }
+            catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                if (!/duplicate column name/i.test(message)) {
+                    throw error;
+                }
+            }
+        }
+    }
+}
 function count(database, table) {
-    const row = database.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get();
+    const row = database
+        .prepare(`SELECT COUNT(*) AS count FROM ${table}`)
+        .get();
     return numberValue(row.count);
 }
 function numberValue(value) {
@@ -697,6 +778,7 @@ function databaseFootprint(path) {
 function sameUtcDay(left, right) {
     if (left <= 0 || right <= 0)
         return false;
-    return new Date(left).toISOString().slice(0, 10) === new Date(right).toISOString().slice(0, 10);
+    return (new Date(left).toISOString().slice(0, 10) ===
+        new Date(right).toISOString().slice(0, 10));
 }
 //# sourceMappingURL=sqlite.js.map

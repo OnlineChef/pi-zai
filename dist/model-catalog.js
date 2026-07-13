@@ -1,11 +1,12 @@
 /** Verified against https://docs.z.ai/guides/overview/pricing (USD per 1M tokens). */
 export const PLATFORM_BASE_URL = "https://api.z.ai/api/paas/v4";
+/** `null` hides Pi-only levels that Z.AI does not expose (off/high/max are the native efforts). */
 export const GLM52_THINKING_LEVEL_MAP = {
     minimal: null,
     low: null,
     medium: null,
     high: "high",
-    xhigh: null,
+    xhigh: "max",
     max: "max",
 };
 const BASE_ZAI_COMPAT = {

@@ -1,9 +1,17 @@
 import { randomUUID } from "node:crypto";
 import { BENCHMARK_SCENARIOS, BENCHMARK_VARIANTS, findBenchmarkScenario, findBenchmarkVariant, formatBenchmarkInstructions, formatBenchmarkManifest, } from "../benchmark/manifest.js";
-import { buildBenchmarkRunReport, formatBenchmarkGatesSummary, formatBenchmarkRunReport } from "../benchmark/report.js";
-import { getCacheMetricsStore, getMetricsStorage, sessionState } from "../state.js";
+import { buildBenchmarkRunReport, formatBenchmarkGatesSummary, formatBenchmarkRunReport, } from "../benchmark/report.js";
+import { getCacheMetricsStore, getMetricsStorage, sessionState, } from "../state.js";
 import { projectIdForCwd } from "../storage/project-id.js";
-const ACTIONS = ["manifest", "instructions", "start", "complete", "status", "report", "gates"];
+const ACTIONS = [
+    "manifest",
+    "instructions",
+    "start",
+    "complete",
+    "status",
+    "report",
+    "gates",
+];
 function createBenchmarkRunId() {
     return `bench-${Date.now()}-${randomUUID().slice(0, 8)}`;
 }
@@ -11,7 +19,10 @@ function completedRunsForVariant(variant) {
     const storage = getMetricsStorage();
     if (!storage)
         return 0;
-    return storage.listBenchmarkRuns().filter((run) => run.variant === variant && run.report !== undefined).length;
+    return storage
+        .listBenchmarkRuns()
+        .filter((run) => run.variant === variant && run.report !== undefined)
+        .length;
 }
 export function registerZaiBenchmarkCommand(pi, deps) {
     pi.registerCommand("zai-benchmark", {
@@ -27,7 +38,9 @@ export function registerZaiBenchmarkCommand(pi, deps) {
                 return variantMatches.map((value) => ({ value, label: value }));
             }
             const scenarioMatches = BENCHMARK_SCENARIOS.map((scenario) => scenario.id).filter((value) => value.startsWith(normalized));
-            return scenarioMatches.length > 0 ? scenarioMatches.map((value) => ({ value, label: value })) : null;
+            return scenarioMatches.length > 0
+                ? scenarioMatches.map((value) => ({ value, label: value }))
+                : null;
         },
         handler: async (args, ctx) => {
             const tokens = args
@@ -56,8 +69,12 @@ export function registerZaiBenchmarkCommand(pi, deps) {
                     }
                     const variantId = tokens[1];
                     const scenarioId = tokens[2];
-                    const variant = variantId ? findBenchmarkVariant(variantId) : undefined;
-                    const scenario = scenarioId ? findBenchmarkScenario(scenarioId) : BENCHMARK_SCENARIOS[0];
+                    const variant = variantId
+                        ? findBenchmarkVariant(variantId)
+                        : undefined;
+                    const scenario = scenarioId
+                        ? findBenchmarkScenario(scenarioId)
+                        : BENCHMARK_SCENARIOS[0];
                     if (!variant || variant.id === "A0") {
                         ctx.ui.notify("Usage: /zai-benchmark start <A1|A2|A3> [scenario]. A0 runs without pi-zai.", "warning");
                         return;

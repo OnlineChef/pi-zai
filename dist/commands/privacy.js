@@ -8,7 +8,9 @@ export function registerZaiPrivacyCommand(pi, deps) {
         description: "Local privacy allowlist and future aggregate preview (not sent)",
         getArgumentCompletions: (prefix) => {
             const matches = ACTIONS.filter((value) => value.startsWith(prefix));
-            return matches.length > 0 ? matches.map((value) => ({ value, label: value })) : null;
+            return matches.length > 0
+                ? matches.map((value) => ({ value, label: value }))
+                : null;
         },
         handler: async (args, ctx) => {
             const action = args.trim().toLowerCase() || "preview";
@@ -19,7 +21,9 @@ export function registerZaiPrivacyCommand(pi, deps) {
             const config = deps.getConfig(ctx.cwd);
             const storage = getMetricsStorage();
             const projectId = sessionState.projectId ?? projectIdForCwd(ctx.cwd);
-            const usage = storage?.getUsageSummary({ projectId }) ?? { ...EMPTY_USAGE_SUMMARY };
+            const usage = storage?.getUsageSummary({ projectId }) ?? {
+                ...EMPTY_USAGE_SUMMARY,
+            };
             ctx.ui.notify(formatPrivacyPreview(config, deps.extensionVersion, sessionState, usage), "info");
         },
     });

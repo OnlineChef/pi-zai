@@ -114,7 +114,8 @@ export async function probeChatEndpoint(baseUrl, apiKey, attempts = 3) {
 export function formatProbeSummary(result) {
     const total = result.ok + result.fail;
     const avg = result.latencyMs.length > 0
-        ? Math.round(result.latencyMs.reduce((sum, value) => sum + value, 0) / result.latencyMs.length)
+        ? Math.round(result.latencyMs.reduce((sum, value) => sum + value, 0) /
+            result.latencyMs.length)
         : 0;
     return `${result.ok}/${total} ok, avg ${avg}ms`;
 }

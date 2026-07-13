@@ -3,6 +3,7 @@ import { AttemptTracker } from "./attempt-tracker.js";
 import { CacheMetricsStore } from "./cache/metrics.js";
 import { QueryCorrelation } from "./correlation.js";
 import { TpsTracker } from "./telemetry/tps.js";
+import { ToolExecutionTracker } from "./tool-tracker.js";
 const ZAI_PROVIDERS = new Set(["zai", "zai-coding-cn", "zai-platform"]);
 export function isZaiProvider(provider) {
     return provider !== undefined && ZAI_PROVIDERS.has(provider);
@@ -41,6 +42,7 @@ let tpsTracker = new TpsTracker();
 let metricsStorage;
 let queryCorrelation = new QueryCorrelation();
 let attemptTracker = new AttemptTracker();
+let toolExecutionTracker = new ToolExecutionTracker();
 let lastMetricsCleanupDay;
 export function getCacheMetricsStore() {
     return cacheMetricsStore;
@@ -61,9 +63,15 @@ export function getQueryCorrelation() {
 export function getAttemptTracker() {
     return attemptTracker;
 }
+export function getToolExecutionTracker() {
+    return toolExecutionTracker;
+}
 export function resetCorrelationState() {
     queryCorrelation = new QueryCorrelation();
     attemptTracker = new AttemptTracker();
+}
+export function resetToolMetrics() {
+    toolExecutionTracker = new ToolExecutionTracker();
 }
 export function resetCacheMetrics() {
     cacheMetricsStore = new CacheMetricsStore();

@@ -1,4 +1,4 @@
-import { FORBIDDEN_TELEMETRY_KEYS } from "./types.js";
+import { FORBIDDEN_TELEMETRY_KEYS, } from "./types.js";
 export function validateAggregatePayload(payload) {
     if (payload.schema !== 1)
         return "schema must be 1";

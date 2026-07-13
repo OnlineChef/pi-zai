@@ -2,7 +2,8 @@ import { BENCHMARK_SAMPLE_GATES, findBenchmarkScenario, } from "./manifest.js";
 export function buildBenchmarkRunReport(input) {
     const rolling = input.cache?.rolling;
     const cacheHitRatio = rolling && rolling.input + rolling.cacheRead + rolling.cacheWrite > 0
-        ? rolling.cacheRead / (rolling.input + rolling.cacheRead + rolling.cacheWrite)
+        ? rolling.cacheRead /
+            (rolling.input + rolling.cacheRead + rolling.cacheWrite)
         : input.usage.cacheHitRatio;
     return {
         schema: 1,
@@ -20,7 +21,8 @@ export function buildBenchmarkRunReport(input) {
     };
 }
 export function evaluateRunGates(variant, scenario, turnsObserved, completedRunsForVariant) {
-    const requiredTurns = findBenchmarkScenario(scenario)?.turns ?? BENCHMARK_SAMPLE_GATES.turnsPerSession;
+    const requiredTurns = findBenchmarkScenario(scenario)?.turns ??
+        BENCHMARK_SAMPLE_GATES.turnsPerSession;
     return [
         {
             id: "turns-per-session",
@@ -34,7 +36,8 @@ export function evaluateRunGates(variant, scenario, turnsObserved, completedRuns
             label: `Completed runs for ${variant}`,
             required: BENCHMARK_SAMPLE_GATES.sessionsPerVariantScenario,
             actual: completedRunsForVariant,
-            passed: completedRunsForVariant >= BENCHMARK_SAMPLE_GATES.sessionsPerVariantScenario,
+            passed: completedRunsForVariant >=
+                BENCHMARK_SAMPLE_GATES.sessionsPerVariantScenario,
         },
     ];
 }
@@ -54,7 +57,7 @@ export function formatBenchmarkRunReport(record) {
         `  Turns observed: ${report.turnsObserved}`,
         `  Cache hit ratio: ${(report.cache.cacheHitRatio * 100).toFixed(1)}%`,
         `  Transport errors: ${report.transport.errors}`,
-        `  Sample gates:`,
+        "  Sample gates:",
         ...gateLines,
     ].join("\n");
 }

@@ -2,7 +2,14 @@ import { getMetricsStorage } from "../state.js";
 import { buildAggregatePayloadForDay } from "../telemetry/aggregate.js";
 import { clearTelemetryConsent, hasTelemetryConsent, readTelemetryConsent, writeTelemetryConsent, } from "../telemetry/consent.js";
 import { isTelemetryUploadEnabled, resolveTelemetryIngestUrl, syncPendingTelemetry, uploadTelemetryDay, } from "../telemetry/sync.js";
-const ACTIONS = ["status", "preview", "enable", "disable", "upload", "sync"];
+const ACTIONS = [
+    "status",
+    "preview",
+    "enable",
+    "disable",
+    "upload",
+    "sync",
+];
 function utcYesterday(now = Date.now()) {
     return new Date(now - 86_400_000).toISOString().slice(0, 10);
 }
@@ -11,7 +18,9 @@ export function registerZaiTelemetryCommand(pi, deps) {
         description: "Opt-in anonymous daily aggregate telemetry (Z.AI usage buckets only)",
         getArgumentCompletions: (prefix) => {
             const matches = ACTIONS.filter((value) => value.startsWith(prefix.trim().toLowerCase()));
-            return matches.length > 0 ? matches.map((value) => ({ value, label: value })) : null;
+            return matches.length > 0
+                ? matches.map((value) => ({ value, label: value }))
+                : null;
         },
         handler: async (args, ctx) => {
             const tokens = args

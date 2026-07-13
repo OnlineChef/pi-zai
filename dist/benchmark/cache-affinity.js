@@ -36,7 +36,9 @@ function percentile(sorted, p) {
 export function summarizeMode(mode, trials, turnsPerTrial) {
     const trialRatios = trials.map((t) => warmCacheHitRatio(t.turns));
     const sorted = [...trialRatios].sort((a, b) => a - b);
-    const warmTurns = trials.flatMap((t) => t.turns.slice(1)).filter((t) => !t.error);
+    const warmTurns = trials
+        .flatMap((t) => t.turns.slice(1))
+        .filter((t) => !t.error);
     const cached = warmTurns.reduce((sum, t) => sum + t.cachedTokens, 0);
     const prompt = warmTurns.reduce((sum, t) => sum + t.promptTokens, 0);
     const latencies = trials.flatMap((t) => t.turns.filter((x) => !x.error).map((x) => x.latencyMs));
@@ -50,7 +52,9 @@ export function summarizeMode(mode, trials, turnsPerTrial) {
         warmCacheHitRatioMedian: percentile(sorted, 0.5),
         warmCacheHitRatioP25: percentile(sorted, 0.25),
         warmCacheHitRatioP75: percentile(sorted, 0.75),
-        avgLatencyMs: latencies.length > 0 ? latencies.reduce((a, b) => a + b, 0) / latencies.length : 0,
+        avgLatencyMs: latencies.length > 0
+            ? latencies.reduce((a, b) => a + b, 0) / latencies.length
+            : 0,
         errors,
         trialRatios,
     };
@@ -178,7 +182,13 @@ export async function runSingleTurn(config, system, messages, sessionHeader) {
             };
         }
     }
-    return { turn: 0, promptTokens: 0, cachedTokens: 0, latencyMs: Date.now() - started, error: "exhausted retries" };
+    return {
+        turn: 0,
+        promptTokens: 0,
+        cachedTokens: 0,
+        latencyMs: Date.now() - started,
+        error: "exhausted retries",
+    };
 }
 export async function runTrial(config, mode, trialIndex) {
     const nonce = `${mode}-trial${trialIndex}-${Date.now()}-${randomUUID().slice(0, 8)}`;
@@ -187,7 +197,10 @@ export async function runTrial(config, mode, trialIndex) {
     const messages = [];
     const turns = [];
     for (let turn = 0; turn < config.turns; turn += 1) {
-        messages.push({ role: "user", content: `Turn ${turn}: name one sorting algorithm in <=3 words.` });
+        messages.push({
+            role: "user",
+            content: `Turn ${turn}: name one sorting algorithm in <=3 words.`,
+        });
         const header = sessionHeaderForMode(mode, stableId, turn);
         const result = await runSingleTurn(config, system, messages, header);
         turns.push({ ...result, turn });

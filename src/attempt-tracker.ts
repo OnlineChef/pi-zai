@@ -6,6 +6,7 @@ type InFlightAttempt = {
 	requestId: string;
 	attempt: number;
 	payloadFingerprint: string;
+	queryStartedAt: number;
 	requestStartedAt: number;
 	headersReceivedAt: number | undefined;
 	firstDeltaAt: number | undefined;
@@ -14,25 +15,71 @@ type InFlightAttempt = {
 	errorCategory: string | undefined;
 };
 
+type TurnUsageTotals = {
+	input: number;
+	cacheRead: number;
+	cacheWrite: number;
+	output: number;
+	costTotal: number;
+};
+
 export class AttemptTracker {
 	private inFlight: InFlightAttempt | undefined;
+	private turnUsage: TurnUsageTotals | undefined;
 
 	hasInFlight(): boolean {
 		return this.inFlight !== undefined;
 	}
 
 	prepareQueryAttempt(queryId: string, now = Date.now()): void {
+		this.turnUsage = undefined;
 		this.inFlight = {
 			queryId,
 			requestId: `${queryId}-pending`,
 			attempt: 0,
 			payloadFingerprint: "pending",
+			queryStartedAt: now,
 			requestStartedAt: now,
 			headersReceivedAt: undefined,
 			firstDeltaAt: undefined,
 			firstToolDeltaAt: undefined,
 			httpStatus: undefined,
 			errorCategory: undefined,
+		};
+	}
+
+	accumulateTurnUsage(usage: Usage): void {
+		const current = this.turnUsage ?? {
+			input: 0,
+			cacheRead: 0,
+			cacheWrite: 0,
+			output: 0,
+			costTotal: 0,
+		};
+		current.input += usage.input;
+		current.cacheRead += usage.cacheRead;
+		current.cacheWrite += usage.cacheWrite;
+		current.output += usage.output;
+		current.costTotal += usage.cost.total;
+		this.turnUsage = current;
+	}
+
+	getTurnUsage(): Usage | undefined {
+		if (!this.turnUsage) return undefined;
+		const { input, cacheRead, cacheWrite, output, costTotal } = this.turnUsage;
+		return {
+			input,
+			cacheRead,
+			cacheWrite,
+			output,
+			totalTokens: input + cacheRead + cacheWrite + output,
+			cost: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+				total: costTotal,
+			},
 		};
 	}
 
@@ -65,15 +112,18 @@ export class AttemptTracker {
 		payloadFingerprint: string;
 		now?: number;
 	}): void {
+		const previous = this.inFlight;
+		const now = input.now ?? Date.now();
 		this.inFlight = {
 			queryId: input.queryId,
 			requestId: input.requestId,
 			attempt: input.attempt,
 			payloadFingerprint: input.payloadFingerprint,
-			requestStartedAt: input.now ?? Date.now(),
-			headersReceivedAt: undefined,
-			firstDeltaAt: undefined,
-			firstToolDeltaAt: undefined,
+			queryStartedAt: previous?.queryStartedAt ?? now,
+			requestStartedAt: now,
+			headersReceivedAt: previous?.headersReceivedAt,
+			firstDeltaAt: previous?.firstDeltaAt,
+			firstToolDeltaAt: previous?.firstToolDeltaAt,
 			httpStatus: undefined,
 			errorCategory: undefined,
 		};
@@ -131,13 +181,14 @@ export class AttemptTracker {
 				: undefined;
 		const requestToFirstDeltaMs =
 			this.inFlight.firstDeltaAt !== undefined
-				? this.inFlight.firstDeltaAt - this.inFlight.requestStartedAt
+				? this.inFlight.firstDeltaAt - this.inFlight.queryStartedAt
 				: undefined;
 		const requestToFirstToolDeltaMs =
 			this.inFlight.firstToolDeltaAt !== undefined
-				? this.inFlight.firstToolDeltaAt - this.inFlight.requestStartedAt
+				? this.inFlight.firstToolDeltaAt - this.inFlight.queryStartedAt
 				: undefined;
-		const totalMs = endedAt - this.inFlight.requestStartedAt;
+		const totalMs = endedAt - this.inFlight.queryStartedAt;
+		const usage = input.usage ?? this.getTurnUsage();
 
 		const record: ProviderAttemptRecord = {
 			occurredAt: endedAt,
@@ -154,10 +205,10 @@ export class AttemptTracker {
 			systemFingerprint: input.systemFingerprint,
 			toolsetFingerprint: input.toolsetFingerprint,
 			payloadFingerprint: this.inFlight.payloadFingerprint,
-			inputTokens: input.usage?.input,
-			cacheReadTokens: input.usage?.cacheRead,
-			cacheWriteTokens: input.usage?.cacheWrite,
-			outputTokens: input.usage?.output,
+			inputTokens: usage?.input,
+			cacheReadTokens: usage?.cacheRead,
+			cacheWriteTokens: usage?.cacheWrite,
+			outputTokens: usage?.output,
 			requestToHeadersMs,
 			requestToFirstDeltaMs,
 			requestToFirstToolDeltaMs,
@@ -165,8 +216,8 @@ export class AttemptTracker {
 			httpStatus: this.inFlight.httpStatus,
 			errorCategory: input.errorCategory ?? this.inFlight.errorCategory,
 			estimatedApiCostMicrousd:
-				input.usage !== undefined
-					? Math.round(Math.max(0, input.usage.cost.total) * 1_000_000)
+				usage !== undefined
+					? Math.round(Math.max(0, usage.cost.total) * 1_000_000)
 					: undefined,
 			toolCallsInTurn: input.toolCallsInTurn,
 			toolErrorsInTurn: input.toolErrorsInTurn,
@@ -174,10 +225,12 @@ export class AttemptTracker {
 		};
 
 		this.inFlight = undefined;
+		this.turnUsage = undefined;
 		return record;
 	}
 
 	reset(): void {
 		this.inFlight = undefined;
+		this.turnUsage = undefined;
 	}
 }
