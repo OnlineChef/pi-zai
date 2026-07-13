@@ -4,6 +4,7 @@ import {
 	MAX_BODY_BYTES,
 	MAX_BY_PROVIDER_MODEL_ROWS,
 	type RateLimitEnv,
+	readBoundedRequestBody,
 } from "./limits";
 
 export { MAX_BODY_BYTES, MAX_BY_PROVIDER_MODEL_ROWS } from "./limits";
@@ -92,10 +93,24 @@ function validateProviderRow(row: unknown, index: number): string | undefined {
 	return undefined;
 }
 
+function isNonNegativeFiniteNumber(value: unknown): boolean {
+	return typeof value === "number" && Number.isFinite(value) && value >= 0;
+}
+
 export function validateBody(body: AggregateBody): string | undefined {
 	if (body.schema !== 1) return "schema must be 1";
 	if (!/^\d{4}-\d{2}-\d{2}$/.test(body.day)) return "invalid day";
-	if (body.attempts < 0 || body.errors < 0) return "negative counts";
+	const numericFields = [
+		body.attempts,
+		body.errors,
+		body.inputTokens,
+		body.cacheReadTokens,
+		body.cacheWriteTokens,
+		body.outputTokens,
+	];
+	if (!numericFields.every(isNonNegativeFiniteNumber)) {
+		return "invalid or negative counts";
+	}
 	if (!Array.isArray(body.byProviderModel))
 		return "byProviderModel must be an array";
 	if (body.byProviderModel.length > MAX_BY_PROVIDER_MODEL_ROWS) {
@@ -153,14 +168,16 @@ export default {
 
 		let body: AggregateBody;
 		try {
-			const rawBody = await request.text();
-			if (rawBody.length > MAX_BODY_BYTES) {
+			const boundedBody = await readBoundedRequestBody(request);
+			if (!boundedBody.ok) {
 				return Response.json(
 					{ ok: false, error: `payload exceeds ${MAX_BODY_BYTES} bytes` },
 					{ status: 413 },
 				);
 			}
-			body = JSON.parse(rawBody) as AggregateBody;
+			body = JSON.parse(
+				new TextDecoder().decode(boundedBody.bytes),
+			) as AggregateBody;
 		} catch {
 			return new Response("Invalid JSON", { status: 400 });
 		}

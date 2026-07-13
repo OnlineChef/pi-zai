@@ -22,16 +22,7 @@ export function resetRateLimitState(): void {
 	rateLimitBuckets.clear();
 }
 
-function pruneRateLimitBuckets(now: number): void {
-	for (const [key, bucket] of rateLimitBuckets) {
-		if (now - bucket.windowStart >= RATE_LIMIT_WINDOW_MS) {
-			rateLimitBuckets.delete(key);
-		}
-	}
-}
-
 export function checkRateLimit(clientKey: string, now = Date.now()): boolean {
-	pruneRateLimitBuckets(now);
 	const bucket = rateLimitBuckets.get(clientKey);
 	if (!bucket || now - bucket.windowStart >= RATE_LIMIT_WINDOW_MS) {
 		rateLimitBuckets.set(clientKey, { count: 1, windowStart: now });
@@ -59,14 +50,55 @@ export function isBodyTooLarge(request: Request): boolean {
 	return Number.isFinite(parsed) && parsed > MAX_BODY_BYTES;
 }
 
+export async function readBoundedRequestBody(
+	request: Request,
+	maxBytes = MAX_BODY_BYTES,
+): Promise<
+	{ ok: true; bytes: Uint8Array } | { ok: false; reason: "too_large" }
+> {
+	const reader = request.body?.getReader();
+	if (!reader) {
+		return { ok: true, bytes: new Uint8Array() };
+	}
+
+	const chunks: Uint8Array[] = [];
+	let totalBytes = 0;
+
+	while (true) {
+		const { done, value } = await reader.read();
+		if (done) break;
+		totalBytes += value.byteLength;
+		if (totalBytes > maxBytes) {
+			await reader.cancel();
+			return { ok: false, reason: "too_large" };
+		}
+		chunks.push(value);
+	}
+
+	const bytes = new Uint8Array(totalBytes);
+	let offset = 0;
+	for (const chunk of chunks) {
+		bytes.set(chunk, offset);
+		offset += chunk.byteLength;
+	}
+
+	return { ok: true, bytes };
+}
+
 export async function enforceRateLimit(
 	request: Request,
 	env: RateLimitEnv,
 ): Promise<boolean> {
 	const clientKey = resolveClientKey(request);
 	if (env.PI_ZAI_RATE_LIMITER) {
-		const { success } = await env.PI_ZAI_RATE_LIMITER.limit({ key: clientKey });
-		return success;
+		try {
+			const { success } = await env.PI_ZAI_RATE_LIMITER.limit({
+				key: clientKey,
+			});
+			return success;
+		} catch {
+			return checkRateLimit(clientKey);
+		}
 	}
 	return checkRateLimit(clientKey);
 }

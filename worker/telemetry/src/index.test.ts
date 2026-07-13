@@ -49,6 +49,20 @@ function createRateLimitBinding(limit: number): RateLimitBinding {
 	};
 }
 
+function createAggregateRequest(clientIp = "203.0.113.44"): Request {
+	return new Request(
+		"https://api.chefgroep.online/pi-zai/telemetry/v1/aggregate",
+		{
+			method: "POST",
+			headers: {
+				"CF-Connecting-IP": clientIp,
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify(validBody),
+		},
+	);
+}
+
 describe("telemetry worker limits", () => {
 	it("rejects oversized Content-Length before parsing", () => {
 		const request = new Request(
@@ -74,6 +88,12 @@ describe("telemetry worker limits", () => {
 		);
 	});
 
+	it("rejects non-numeric aggregate counters", () => {
+		expect(
+			validateBody({ ...validBody, inputTokens: "10" as unknown as number }),
+		).toBe("invalid or negative counts");
+	});
+
 	it("enforces a per-client request rate limit via local fallback", () => {
 		resetRateLimitState();
 		const now = Date.now();
@@ -97,6 +117,27 @@ describe("telemetry worker limits", () => {
 		expect(await enforceRateLimit(request, env)).toBe(true);
 		expect(await enforceRateLimit(request, env)).toBe(false);
 	});
+
+	it("falls back to the local token bucket when the binding rejects", async () => {
+		resetRateLimitState();
+		const request = new Request(
+			"https://example.test/pi-zai/telemetry/v1/aggregate",
+			{
+				method: "POST",
+				headers: { "CF-Connecting-IP": "203.0.113.55" },
+			},
+		);
+		const env = {
+			PI_ZAI_RATE_LIMITER: {
+				async limit() {
+					throw new Error("binding unavailable");
+				},
+			},
+		};
+
+		expect(await enforceRateLimit(request, env)).toBe(true);
+		expect(await enforceRateLimit(request, env)).toBe(true);
+	});
 });
 
 describe("telemetry worker fetch handler", () => {
@@ -112,41 +153,50 @@ describe("telemetry worker fetch handler", () => {
 		expect(response.status).toBe(413);
 	});
 
-	it("returns 429 when rate limited", async () => {
-		resetRateLimitState();
-		const env = {};
+	it("returns 413 for oversized bodies without Content-Length", async () => {
 		const request = new Request(
 			"https://api.chefgroep.online/pi-zai/telemetry/v1/aggregate",
 			{
 				method: "POST",
-				headers: {
-					"CF-Connecting-IP": "203.0.113.44",
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify(validBody),
+				body: "a".repeat(MAX_BODY_BYTES + 1),
 			},
 		);
+		expect(request.headers.get("Content-Length")).toBeNull();
+
+		const response = await worker.fetch(request, {});
+		expect(response.status).toBe(413);
+	});
+
+	it("returns 413 when a multibyte body exceeds the UTF-8 byte limit", async () => {
+		const request = new Request(
+			"https://api.chefgroep.online/pi-zai/telemetry/v1/aggregate",
+			{
+				method: "POST",
+				body: `"${"é".repeat(MAX_BODY_BYTES / 2)}"`,
+			},
+		);
+		expect(request.headers.get("Content-Length")).toBeNull();
+
+		const response = await worker.fetch(request, {});
+		expect(response.status).toBe(413);
+	});
+
+	it("returns 429 when rate limited", async () => {
+		resetRateLimitState();
+		const env = {};
 
 		for (let index = 0; index < 30; index += 1) {
-			const allowed = await worker.fetch(request, env);
+			const allowed = await worker.fetch(createAggregateRequest(), env);
 			expect(allowed.status).not.toBe(429);
 		}
 
-		const blocked = await worker.fetch(request, env);
+		const blocked = await worker.fetch(createAggregateRequest(), env);
 		expect(blocked.status).toBe(429);
 	});
 
 	it("accepts valid aggregate payloads", async () => {
 		resetRateLimitState();
-		const request = new Request(
-			"https://api.chefgroep.online/pi-zai/telemetry/v1/aggregate",
-			{
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(validBody),
-			},
-		);
-		const response = await worker.fetch(request, {});
+		const response = await worker.fetch(createAggregateRequest(), {});
 		expect(response.status).toBe(202);
 		await expect(response.json()).resolves.toEqual({
 			ok: true,
