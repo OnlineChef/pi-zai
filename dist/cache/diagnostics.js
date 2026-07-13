@@ -21,7 +21,9 @@ function formatTimestamp(epochMs) {
 function segmentLines(stats) {
     const { segment, last, rolling } = stats;
     const promptTokens = rolling.input + rolling.cacheRead + rolling.cacheWrite;
-    const lastRatios = last ? { hitRatio: last.hitRatio, missRatio: last.missRatio } : computeCacheRatios(rolling);
+    const lastRatios = last
+        ? { hitRatio: last.hitRatio, missRatio: last.missRatio }
+        : computeCacheRatios(rolling);
     return [
         "Current segment",
         `  Provider: ${segment.provider}`,

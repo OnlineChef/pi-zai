@@ -282,6 +282,9 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 		) {
 			return;
 		}
+		if (event.message.usage) {
+			getAttemptTracker().accumulateTurnUsage(event.message.usage);
+		}
 		const sample = getTpsTracker().completeAssistantMessage(
 			event.message.usage,
 			Date.now(),
@@ -291,8 +294,10 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 
 	pi.on("before_agent_start", async (event, ctx) => {
 		if (!ctx.model || !isZaiModel(ctx.model)) return;
+		const turnStartedAt = Date.now();
 		const queryId = getQueryCorrelation().beginQuery();
-		getAttemptTracker().prepareQueryAttempt(queryId);
+		getAttemptTracker().prepareQueryAttempt(queryId, turnStartedAt);
+		getTpsTracker().beginTurn(turnStartedAt);
 		getToolExecutionTracker().beginTurn();
 		const activeToolNames = new Set(pi.getActiveTools());
 		const toolsForFingerprint = pi
@@ -337,6 +342,10 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 			const segment = getCacheMetricsStore().get()?.segment;
 			ensureAttemptTrackingForTurnEnd();
 			const turnTools = getToolExecutionTracker().getTurnStats();
+			getTpsTracker().completeTurn({
+				toolMs: turnTools.totalMs,
+				toolCalls: turnTools.executions,
+			});
 			const record = getAttemptTracker().buildRecord({
 				projectId: sessionState.projectId ?? projectIdForCwd(ctx.cwd),
 				sessionHash:
@@ -349,7 +358,6 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 				extensionVersion: EXTENSION_VERSION,
 				systemFingerprint: segment?.systemFingerprint,
 				toolsetFingerprint: segment?.toolsetFingerprint,
-				usage: event.message.usage,
 				errorCategory:
 					assistant.stopReason === "error"
 						? classifyTransportError(assistant.errorMessage, undefined)

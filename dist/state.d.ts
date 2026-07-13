@@ -6,6 +6,7 @@ import { CacheMetricsStore } from "./cache/metrics.ts";
 import { QueryCorrelation } from "./correlation.ts";
 import type { MetricsStorage } from "./storage/types.ts";
 import { TpsTracker } from "./telemetry/tps.ts";
+import { ToolExecutionTracker } from "./tool-tracker.ts";
 export type ZaiEndpointKind = "coding" | "platform" | "coding-cn" | "unknown";
 export interface ZaiSessionState {
     preserveThinking: boolean;
@@ -52,7 +53,9 @@ export declare function getMetricsStorage(): MetricsStorage | undefined;
 export declare function setMetricsStorage(storage: MetricsStorage | undefined): void;
 export declare function getQueryCorrelation(): QueryCorrelation;
 export declare function getAttemptTracker(): AttemptTracker;
+export declare function getToolExecutionTracker(): ToolExecutionTracker;
 export declare function resetCorrelationState(): void;
+export declare function resetToolMetrics(): void;
 export declare function resetCacheMetrics(): void;
 export declare function resetTpsMetrics(): void;
 export declare function shouldRunDailyMetricsCleanup(now?: number): boolean;

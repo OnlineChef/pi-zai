@@ -59,7 +59,9 @@ export function appendDynamicContext(stablePrompt, dynamicContext) {
 export function analyzeSystemPromptSections(systemPrompt) {
     const { stable, dynamic } = splitStableAndDynamicSystemPrompt(systemPrompt);
     const stableLines = stable.split("\n");
-    let volatileLineCount = dynamic ? dynamic.split("\n").filter((line) => line.trim()).length : 0;
+    let volatileLineCount = dynamic
+        ? dynamic.split("\n").filter((line) => line.trim()).length
+        : 0;
     let inlineVolatile = 0;
     for (const line of stableLines) {
         if (isVolatileSystemPromptLine(line)) {
@@ -68,7 +70,9 @@ export function analyzeSystemPromptSections(systemPrompt) {
     }
     volatileLineCount += inlineVolatile;
     const stableLineCount = Math.max(0, stableLines.length - inlineVolatile);
-    const sections = [{ kind: "stable", lineCount: stableLineCount }];
+    const sections = [
+        { kind: "stable", lineCount: stableLineCount },
+    ];
     if (volatileLineCount > 0) {
         sections.push({ kind: "volatile", lineCount: volatileLineCount });
     }

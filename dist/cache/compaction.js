@@ -53,7 +53,9 @@ export function stripHiddenReasoningFromMessages(messages) {
         return { ...message, content: filtered };
     });
 }
-export function prepareMessagesForCompaction(messages, options = { dropHiddenReasoning: true }) {
+export function prepareMessagesForCompaction(messages, options = {
+    dropHiddenReasoning: true,
+}) {
     if (!options.dropHiddenReasoning) {
         return messages;
     }

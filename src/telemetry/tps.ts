@@ -16,9 +16,24 @@ export type TpsRollingStats = {
 	avgTps: number;
 };
 
+export type TurnThroughputSample = {
+	outputTokens: number;
+	generationMs: number;
+	toolMs: number;
+	toolCalls: number;
+	wallMs: number;
+	generationTps: number;
+	effectiveTps: number;
+};
+
+export type TurnThroughputStats = {
+	last: TurnThroughputSample | undefined;
+};
+
 export type TpsStats = {
 	last: TpsSample | undefined;
 	rolling: TpsRollingStats;
+	turn: TurnThroughputStats;
 };
 
 type InFlightSample = {
@@ -79,8 +94,30 @@ export function formatTpsTelemetryLines(stats: TpsStats | undefined): string[] {
 	return lines;
 }
 
+export function formatTurnThroughputLines(
+	turn: TurnThroughputStats | undefined,
+): string[] {
+	if (!turn?.last) {
+		return [];
+	}
+	const { last } = turn;
+	const lines = [
+		`  Turn: ${formatTps(last.effectiveTps)} tok/s effective (${formatDurationMs(last.wallMs)} wall, ${last.outputTokens.toLocaleString("en-US")} out)`,
+		`  Generation: ${formatTps(last.generationTps)} tok/s (${formatDurationMs(last.generationMs)})`,
+	];
+	if (last.toolCalls > 0) {
+		lines.push(
+			`  Tools: ${last.toolCalls} call${last.toolCalls === 1 ? "" : "s"}, ${formatDurationMs(last.toolMs)}`,
+		);
+	}
+	return lines;
+}
+
 export class TpsTracker {
 	private inFlight: InFlightSample | undefined;
+	private turnStartedAt: number | undefined;
+	private turnOutputTokens = 0;
+	private turnGenerationMs = 0;
 	private stats: TpsStats = {
 		last: undefined,
 		rolling: {
@@ -89,7 +126,41 @@ export class TpsTracker {
 			requests: 0,
 			avgTps: 0,
 		},
+		turn: { last: undefined },
 	};
+
+	beginTurn(startedAt = Date.now()): void {
+		this.turnStartedAt = startedAt;
+		this.turnOutputTokens = 0;
+		this.turnGenerationMs = 0;
+	}
+
+	completeTurn(input: {
+		toolMs: number;
+		toolCalls: number;
+		endedAt?: number;
+	}): TurnThroughputSample | undefined {
+		if (this.turnStartedAt === undefined || this.turnOutputTokens <= 0) {
+			return undefined;
+		}
+		const endedAt = input.endedAt ?? Date.now();
+		const wallMs = Math.max(1, endedAt - this.turnStartedAt);
+		const generationMs = Math.max(1, this.turnGenerationMs);
+		const sample: TurnThroughputSample = {
+			outputTokens: this.turnOutputTokens,
+			generationMs: this.turnGenerationMs,
+			toolMs: input.toolMs,
+			toolCalls: input.toolCalls,
+			wallMs,
+			generationTps: computeTps(this.turnOutputTokens, generationMs),
+			effectiveTps: computeTps(this.turnOutputTokens, wallMs),
+		};
+		this.stats.turn.last = sample;
+		this.turnStartedAt = undefined;
+		this.turnOutputTokens = 0;
+		this.turnGenerationMs = 0;
+		return sample;
+	}
 
 	beginAssistantMessage(startedAt = Date.now()): void {
 		this.inFlight = { startedAt, ttftMs: undefined };
@@ -127,6 +198,9 @@ export class TpsTracker {
 		rolling.requests += 1;
 		rolling.avgTps = computeTps(rolling.generationTokens, rolling.durationMs);
 
+		this.turnOutputTokens += outputTokens;
+		this.turnGenerationMs += durationMs;
+
 		this.stats.last = sample;
 		this.inFlight = undefined;
 		return sample;
@@ -138,6 +212,9 @@ export class TpsTracker {
 
 	reset(): void {
 		this.inFlight = undefined;
+		this.turnStartedAt = undefined;
+		this.turnOutputTokens = 0;
+		this.turnGenerationMs = 0;
 		this.stats = {
 			last: undefined,
 			rolling: {
@@ -146,6 +223,7 @@ export class TpsTracker {
 				requests: 0,
 				avgTps: 0,
 			},
+			turn: { last: undefined },
 		};
 	}
 }

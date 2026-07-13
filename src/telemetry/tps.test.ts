@@ -97,3 +97,30 @@ describe("formatTpsStatusLine", () => {
 		).toBe("50 tok/s (avg 75)");
 	});
 });
+
+describe("TpsTracker turn throughput", () => {
+	it("computes generation and effective TPS for a turn with tools", () => {
+		const tracker = new TpsTracker();
+		tracker.beginTurn(0);
+		tracker.beginAssistantMessage(0);
+		tracker.completeAssistantMessage({ output: 100, reasoning: 20 }, 1000);
+		tracker.beginAssistantMessage(1000);
+		tracker.completeAssistantMessage({ output: 50, reasoning: 0 }, 1500);
+
+		const turn = tracker.completeTurn({
+			toolMs: 500,
+			toolCalls: 2,
+			endedAt: 2000,
+		});
+
+		expect(turn).toMatchObject({
+			outputTokens: 150,
+			generationMs: 1500,
+			toolMs: 500,
+			toolCalls: 2,
+			wallMs: 2000,
+			generationTps: 100,
+			effectiveTps: 75,
+		});
+	});
+});

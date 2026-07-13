@@ -1,5 +1,5 @@
 import { computeCacheRatios } from "../cache/metrics.js";
-import { fetchQuotaLimit, formatQuotaLimit, monitorBaseFromModelUrl } from "../usage-monitor.js";
+import { fetchQuotaLimit, formatQuotaLimit, monitorBaseFromModelUrl, } from "../usage-monitor.js";
 import { getCacheMetricsStore } from "./cache-state.js";
 import { formatDollarCost, formatPercent, formatTokens, formatUsageLine, getLastAssistantUsage, getSessionUsageTotals, isEstimatedCost, isSubscriptionManaged, requireZaiModel, } from "./helpers.js";
 export function registerZaiUsageCommand(pi, deps) {
@@ -15,13 +15,17 @@ export function registerZaiUsageCommand(pi, deps) {
             const lastUsage = getLastAssistantUsage(ctx);
             const sessionTotals = getSessionUsageTotals(ctx);
             const cacheStats = getCacheMetricsStore().get();
-            const sessionPrompt = sessionTotals.input + sessionTotals.cacheRead + sessionTotals.cacheWrite;
+            const sessionPrompt = sessionTotals.input +
+                sessionTotals.cacheRead +
+                sessionTotals.cacheWrite;
             const sessionRatios = computeCacheRatios({
                 input: sessionTotals.input,
                 cacheRead: sessionTotals.cacheRead,
                 cacheWrite: sessionTotals.cacheWrite,
             });
-            const rollingHitRatio = cacheStats && cacheStats.rolling.requests > 0 ? cacheStats.rolling.hitRatio : sessionRatios.hitRatio;
+            const rollingHitRatio = cacheStats && cacheStats.rolling.requests > 0
+                ? cacheStats.rolling.hitRatio
+                : sessionRatios.hitRatio;
             const costInterpretation = isSubscriptionManaged(model)
                 ? "Dollar cost: subscription-managed (Coding Plan)"
                 : isEstimatedCost(model)
@@ -53,7 +57,9 @@ export function registerZaiUsageCommand(pi, deps) {
             const monitorBase = monitorBaseFromModelUrl(model.baseUrl);
             const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
             if (monitorBase && auth.ok && auth.apiKey) {
-                const quota = await fetchQuotaLimit(monitorBase, auth.apiKey, { headers: auth.headers });
+                const quota = await fetchQuotaLimit(monitorBase, auth.apiKey, {
+                    headers: auth.headers,
+                });
                 lines.push("");
                 if (quota.ok) {
                     lines.push(...formatQuotaLimit(quota.data));

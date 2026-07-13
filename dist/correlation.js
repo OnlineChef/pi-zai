@@ -14,10 +14,16 @@ function stableSerialize(value) {
     return JSON.stringify(value);
 }
 export function hashSessionId(sessionId) {
-    return createHash("sha256").update(`pi-zai:session:${sessionId}`).digest("hex").slice(0, 16);
+    return createHash("sha256")
+        .update(`pi-zai:session:${sessionId}`)
+        .digest("hex")
+        .slice(0, 16);
 }
 export function fingerprintPayload(payload) {
-    return createHash("sha256").update(stableSerialize(payload)).digest("hex").slice(0, 16);
+    return createHash("sha256")
+        .update(stableSerialize(payload))
+        .digest("hex")
+        .slice(0, 16);
 }
 export class QueryCorrelation {
     queryCounter = 0;
@@ -30,6 +36,9 @@ export class QueryCorrelation {
             .update(`pi-zai:query:${this.queryCounter}:${Date.now()}`)
             .digest("hex")
             .slice(0, 8)}`;
+        return this.currentQueryId;
+    }
+    currentQueryIdOrUndefined() {
         return this.currentQueryId;
     }
     nextAttempt() {

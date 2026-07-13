@@ -2,8 +2,11 @@ import type { Usage } from "@earendil-works/pi-ai";
 import type { ProviderAttemptRecord } from "./storage/types.ts";
 export declare class AttemptTracker {
     private inFlight;
+    private turnUsage;
     hasInFlight(): boolean;
     prepareQueryAttempt(queryId: string, now?: number): void;
+    accumulateTurnUsage(usage: Usage): void;
+    getTurnUsage(): Usage | undefined;
     armProviderAttempt(input: {
         requestId: string;
         attempt: number;
@@ -19,6 +22,7 @@ export declare class AttemptTracker {
     }): void;
     markHeadersReceived(now?: number): void;
     markFirstDelta(now?: number): void;
+    markFirstToolDelta(now?: number): void;
     markResponse(status: number, errorCategory?: string): void;
     buildRecord(input: {
         occurredAt?: number;
@@ -33,6 +37,9 @@ export declare class AttemptTracker {
         toolsetFingerprint?: string;
         usage?: Usage;
         errorCategory?: string;
+        toolCallsInTurn?: number;
+        toolErrorsInTurn?: number;
+        toolDurationMsTotal?: number;
     }): ProviderAttemptRecord | undefined;
     reset(): void;
 }

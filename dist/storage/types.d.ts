@@ -23,10 +23,14 @@ export interface ProviderAttemptRecord {
     outputTokens?: number;
     requestToHeadersMs?: number;
     requestToFirstDeltaMs?: number;
+    requestToFirstToolDeltaMs?: number;
     totalMs?: number;
     httpStatus?: number;
     errorCategory?: string;
     estimatedApiCostMicrousd?: number;
+    toolCallsInTurn?: number;
+    toolErrorsInTurn?: number;
+    toolDurationMsTotal?: number;
 }
 export interface UsageFilter {
     projectId?: string;
@@ -49,7 +53,11 @@ export interface TransportSummary {
     errors: number;
     avgRequestToHeadersMs?: number;
     avgRequestToFirstDeltaMs?: number;
+    avgRequestToFirstToolDeltaMs?: number;
     avgTotalMs?: number;
+    totalToolCalls: number;
+    totalToolErrors: number;
+    avgToolDurationMs?: number;
     errorCategories: Record<string, number>;
 }
 export interface StorageStatus {

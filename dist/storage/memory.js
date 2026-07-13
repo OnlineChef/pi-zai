@@ -39,7 +39,12 @@ export class MemoryStorage {
     }
     runCleanup(now, force = false) {
         if (!this.enabled)
-            return { attemptsDeleted: 0, rollupsDeleted: 0, benchmarksDeleted: 0, ran: false };
+            return {
+                attemptsDeleted: 0,
+                rollupsDeleted: 0,
+                benchmarksDeleted: 0,
+                ran: false,
+            };
         const cutoff = now - this.retentionDays * 86_400_000;
         const before = this.records.length;
         this.records = this.records.filter((record) => record.occurredAt >= cutoff);
@@ -83,12 +88,21 @@ export class MemoryStorage {
         return true;
     }
     listBenchmarkRuns() {
-        return this.enabled ? this.benchmarkRuns.map((entry) => ({ ...entry, manifest: { ...entry.manifest } })) : [];
+        return this.enabled
+            ? this.benchmarkRuns.map((entry) => ({
+                ...entry,
+                manifest: { ...entry.manifest },
+            }))
+            : [];
     }
     getBenchmarkRun(runId) {
         const run = this.benchmarkRuns.find((entry) => entry.runId === runId);
         return run
-            ? { ...run, manifest: { ...run.manifest }, report: run.report ? { ...run.report } : undefined }
+            ? {
+                ...run,
+                manifest: { ...run.manifest },
+                report: run.report ? { ...run.report } : undefined,
+            }
             : undefined;
     }
     clearAll() {
@@ -133,7 +147,8 @@ export class MemoryStorage {
     }
     filtered(filter) {
         return this.records.filter((record) => {
-            if (filter.projectId !== undefined && record.projectId !== filter.projectId)
+            if (filter.projectId !== undefined &&
+                record.projectId !== filter.projectId)
                 return false;
             if (filter.since !== undefined && record.occurredAt < filter.since)
                 return false;

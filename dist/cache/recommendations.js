@@ -36,7 +36,9 @@ export function buildCacheRecommendations(stats) {
             message: "Cache writes exceed reads in this segment. Avoid changing the system prompt or tool definitions between turns.",
         });
     }
-    if (segment.endpoint === "platform" && rolling.estimatedSavings > 0 && promptTotal > 0) {
+    if (segment.endpoint === "platform" &&
+        rolling.estimatedSavings > 0 &&
+        promptTotal > 0) {
         const savingsRatio = rolling.estimatedSavings / Math.max(rolling.estimatedCost, 0.0001);
         if (savingsRatio < 0.05 && rolling.hitRatio < MEDIUM_HIT_RATIO) {
             recommendations.push({

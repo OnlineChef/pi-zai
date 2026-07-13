@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 export const INITIAL_SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS schema_meta (
   key TEXT PRIMARY KEY,
@@ -28,10 +28,14 @@ CREATE TABLE IF NOT EXISTS provider_attempts (
   output_tokens INTEGER,
   request_to_headers_ms REAL,
   request_to_first_delta_ms REAL,
+  request_to_first_tool_delta_ms REAL,
   total_ms REAL,
   http_status INTEGER,
   error_category TEXT,
-  estimated_api_cost_microusd INTEGER
+  estimated_api_cost_microusd INTEGER,
+  tool_calls_in_turn INTEGER,
+  tool_errors_in_turn INTEGER,
+  tool_duration_ms_total INTEGER
 ) STRICT;
 
 CREATE TABLE IF NOT EXISTS daily_rollups (
@@ -75,4 +79,13 @@ CREATE TABLE IF NOT EXISTS telemetry_uploads (
   uploaded_at INTEGER NOT NULL
 ) STRICT;
 `;
+/** Additive migrations for existing databases created at earlier schema versions. */
+export const SCHEMA_MIGRATIONS = {
+    2: [
+        "ALTER TABLE provider_attempts ADD COLUMN request_to_first_tool_delta_ms REAL",
+        "ALTER TABLE provider_attempts ADD COLUMN tool_calls_in_turn INTEGER",
+        "ALTER TABLE provider_attempts ADD COLUMN tool_errors_in_turn INTEGER",
+        "ALTER TABLE provider_attempts ADD COLUMN tool_duration_ms_total INTEGER",
+    ],
+};
 //# sourceMappingURL=migrations.js.map

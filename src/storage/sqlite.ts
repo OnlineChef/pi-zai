@@ -249,7 +249,10 @@ SELECT
   AVG(request_to_headers_ms) AS avg_request_to_headers_ms,
   AVG(request_to_first_delta_ms) AS avg_request_to_first_delta_ms,
   AVG(request_to_first_tool_delta_ms) AS avg_request_to_first_tool_delta_ms,
-  AVG(total_ms) AS avg_total_ms
+  AVG(total_ms) AS avg_total_ms,
+  COALESCE(SUM(tool_calls_in_turn), 0) AS total_tool_calls,
+  COALESCE(SUM(tool_errors_in_turn), 0) AS total_tool_errors,
+  AVG(tool_duration_ms_total) AS avg_tool_duration_ms
 FROM provider_attempts${detailQuery.where}`)
 				.get(...detailQuery.values) as SqlRow;
 			const rollupQuery = buildRollupWhere(filter);
@@ -286,6 +289,9 @@ GROUP BY error_category`)
 					row.avg_request_to_first_tool_delta_ms,
 				),
 				avgTotalMs: roundOptionalAverage(row.avg_total_ms),
+				totalToolCalls: numberValue(row.total_tool_calls),
+				totalToolErrors: numberValue(row.total_tool_errors),
+				avgToolDurationMs: roundOptionalAverage(row.avg_tool_duration_ms),
 				errorCategories,
 			};
 		} catch (error) {
@@ -522,8 +528,9 @@ GROUP BY error_category`)
   provider, model, endpoint_kind, thinking_level, pi_version, extension_version,
   system_fingerprint, toolset_fingerprint, payload_fingerprint,
   input_tokens, cache_read_tokens, cache_write_tokens, output_tokens,
-  request_to_headers_ms, request_to_first_delta_ms, total_ms,
-  http_status, error_category, estimated_api_cost_microusd
+  request_to_headers_ms, request_to_first_delta_ms, request_to_first_tool_delta_ms, total_ms,
+  http_status, error_category, estimated_api_cost_microusd,
+  tool_calls_in_turn, tool_errors_in_turn, tool_duration_ms_total
 FROM provider_attempts${where}
 ORDER BY occurred_at ASC, id ASC`)
 				.all(...values) as SqlRow[];

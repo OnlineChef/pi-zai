@@ -1,5 +1,5 @@
 import { calculateCost } from "@earendil-works/pi-ai/compat";
-import { endpointsShareCache, isCodingPlanProvider, isPlatformProvider } from "./context-policy.js";
+import { endpointsShareCache, isCodingPlanProvider, isPlatformProvider, } from "./context-policy.js";
 export function endpointLabel(provider, baseUrl) {
     if (isPlatformProvider(provider))
         return "platform";
@@ -31,7 +31,8 @@ export function detectSegmentChange(previous, next) {
         reasons.push("system-fingerprint");
     if (previous.toolsetFingerprint !== next.toolsetFingerprint)
         reasons.push("toolset-fingerprint");
-    if (reasons.includes("endpoint") && !endpointsShareCache(previous.endpoint, next.endpoint)) {
+    if (reasons.includes("endpoint") &&
+        !endpointsShareCache(previous.endpoint, next.endpoint)) {
         // Cross-model / cross-endpoint: never assume cache transfer.
         if (!reasons.includes("model")) {
             reasons.push("cross-endpoint-no-transfer");
@@ -72,7 +73,10 @@ export function estimateCacheSavings(model, usage) {
         cacheWrite: 0,
         cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
     };
-    const cached = { ...usage, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } };
+    const cached = {
+        ...usage,
+        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+    };
     calculateCost(model, uncached);
     calculateCost(model, cached);
     return Math.max(0, uncached.cost.total - cached.cost.total);

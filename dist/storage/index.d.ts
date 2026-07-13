@@ -1,5 +1,5 @@
 import type { ZaiMetricsConfig } from "../config.ts";
-export { clearLocalProjectSecret, loadOrCreateLocalSecret, localSecretPath, projectIdForCwd } from "./project-id.ts";
+export { clearLocalProjectSecret, loadOrCreateLocalSecret, localSecretPath, projectIdForCwd, } from "./project-id.ts";
 import type { MetricsStorage } from "./types.ts";
 export { MemoryStorage } from "./memory.ts";
 export * from "./types.ts";

@@ -1,5 +1,5 @@
 import { isZaiModel } from "../cache/context-policy.js";
-import { formatCacheDiagnostics, formatCacheResetMessage } from "../cache/diagnostics.js";
+import { formatCacheDiagnostics, formatCacheResetMessage, } from "../cache/diagnostics.js";
 import { getCacheMetricsStore, resetCacheMetrics } from "./cache-state.js";
 const ACTIONS = ["status", "reset-stats", "explain"];
 function parseCacheAction(args) {
@@ -17,7 +17,9 @@ export function registerZaiCacheCommand(pi) {
         description: "Z.AI implicit cache diagnostics (status, reset-stats, explain)",
         getArgumentCompletions: (prefix) => {
             const matches = ACTIONS.filter((value) => value.startsWith(prefix));
-            return matches.length > 0 ? matches.map((value) => ({ value, label: value })) : null;
+            return matches.length > 0
+                ? matches.map((value) => ({ value, label: value }))
+                : null;
         },
         handler: async (args, ctx) => {
             if (!isZaiModel(ctx.model)) {

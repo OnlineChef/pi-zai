@@ -1,1 +1,1 @@
-{"version":3,"file":"privacy.d.ts","sourceRoot":"","sources":["../../src/commands/privacy.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,YAAY,EAAE,MAAM,iCAAiC,CAAC;AAKpE,OAAO,KAAK,EAAE,cAAc,EAAE,MAAM,WAAW,CAAC;AAIhD,wBAAgB,yBAAyB,CAAC,EAAE,EAAE,YAAY,EAAE,IAAI,EAAE,cAAc,GAAG,IAAI,CAqBtF"}
+{"version":3,"file":"privacy.d.ts","sourceRoot":"","sources":["../../src/commands/privacy.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,YAAY,EAAE,MAAM,iCAAiC,CAAC;AAKpE,OAAO,KAAK,EAAE,cAAc,EAAE,MAAM,WAAW,CAAC;AAIhD,wBAAgB,yBAAyB,CACxC,EAAE,EAAE,YAAY,EAChB,IAAI,EAAE,cAAc,GAClB,IAAI,CAqCN"}

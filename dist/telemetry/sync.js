@@ -1,6 +1,6 @@
 import { buildAggregatePayloadForDay } from "./aggregate.js";
 import { hasTelemetryConsent } from "./consent.js";
-import { TELEMETRY_INGEST_URL } from "./types.js";
+import { TELEMETRY_INGEST_URL, } from "./types.js";
 import { uploadAggregatePayload } from "./uploader.js";
 export function isTelemetryUploadEnabled(config) {
     return config.telemetryMode === "aggregate" && hasTelemetryConsent();

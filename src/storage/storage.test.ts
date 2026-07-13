@@ -99,6 +99,32 @@ describe("MemoryStorage", () => {
 		});
 	});
 
+	it("summarizes tool call aggregates in transport summary", () => {
+		const storage = new MemoryStorage();
+		storage.recordAttempt(
+			record({
+				toolCallsInTurn: 2,
+				toolErrorsInTurn: 0,
+				toolDurationMsTotal: 300,
+			}),
+		);
+		storage.recordAttempt(
+			record({
+				toolCallsInTurn: 1,
+				toolErrorsInTurn: 1,
+				toolDurationMsTotal: 100,
+			}),
+		);
+
+		expect(
+			storage.getTransportSummary({ projectId: "project-a" }),
+		).toMatchObject({
+			totalToolCalls: 3,
+			totalToolErrors: 1,
+			avgToolDurationMs: 200,
+		});
+	});
+
 	it("tracks anonymous daily summaries and telemetry upload state", () => {
 		const storage = new MemoryStorage();
 		const day = "2026-07-11";
@@ -184,6 +210,29 @@ describe("NodeSqliteStorage", () => {
 		storage.clearProject("project-a");
 		expect(storage.getUsageSummary({ projectId: "project-a" }).attempts).toBe(
 			0,
+		);
+		storage.close();
+	});
+
+	it("persists tool call columns through sqlite round-trip", () => {
+		const storage = sqliteStorage();
+		storage.recordAttempt(
+			record({
+				toolCallsInTurn: 3,
+				toolErrorsInTurn: 1,
+				toolDurationMsTotal: 450,
+			}),
+		);
+
+		expect(
+			storage.getTransportSummary({ projectId: "project-a" }),
+		).toMatchObject({
+			totalToolCalls: 3,
+			totalToolErrors: 1,
+			avgToolDurationMs: 450,
+		});
+		expect(storage.exportData("json", { projectId: "project-a" })).toContain(
+			'"toolCallsInTurn": 3',
 		);
 		storage.close();
 	});

@@ -5,6 +5,7 @@ export declare class QueryCorrelation {
     private currentQueryId;
     private attemptCounter;
     beginQuery(): string;
+    currentQueryIdOrUndefined(): string | undefined;
     nextAttempt(): {
         queryId: string;
         requestId: string;

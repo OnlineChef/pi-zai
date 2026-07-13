@@ -1,26 +1,24 @@
 import { getMetricsStorage, sessionState } from "../state.js";
 import { projectIdForCwd } from "../storage/project-id.js";
-function formatLatency(label, value) {
-    if (value === undefined)
-        return undefined;
-    return `  ${label}: ${value} ms`;
-}
+import { formatHeading, formatKeyValue, formatMs, formatSection, joinCommandLines, } from "./format.js";
 function formatTransportSummary(summary) {
-    const lines = ["Z.AI transport summary (local)", `  Attempts: ${summary.attempts}`, `  Errors: ${summary.errors}`];
-    const latencyLines = [
-        formatLatency("Avg request to headers", summary.avgRequestToHeadersMs),
-        formatLatency("Avg request to first delta", summary.avgRequestToFirstDeltaMs),
-        formatLatency("Avg total", summary.avgTotalMs),
-    ].filter((line) => line !== undefined);
-    lines.push(...latencyLines);
+    const lines = [
+        ...formatHeading("Z.AI transport"),
+        formatKeyValue("Attempts", summary.attempts),
+        formatKeyValue("Errors", summary.errors),
+        formatKeyValue("Avg headers", formatMs(summary.avgRequestToHeadersMs)),
+        formatKeyValue("Avg first delta", formatMs(summary.avgRequestToFirstDeltaMs)),
+        formatKeyValue("Avg first tool", formatMs(summary.avgRequestToFirstToolDeltaMs)),
+        formatKeyValue("Avg total", formatMs(summary.avgTotalMs)),
+    ];
+    if (summary.totalToolCalls > 0) {
+        lines.push(formatKeyValue("Tool calls", `${summary.totalToolCalls}${summary.totalToolErrors > 0 ? ` (${summary.totalToolErrors} errors)` : ""}`), formatKeyValue("Avg tool duration", formatMs(summary.avgToolDurationMs)));
+    }
     const categories = Object.entries(summary.errorCategories).sort((left, right) => right[1] - left[1]);
     if (categories.length > 0) {
-        lines.push("  Error categories:");
-        for (const [category, count] of categories) {
-            lines.push(`    ${category}: ${count}`);
-        }
+        lines.push(...formatSection("Error categories", categories.map(([category, count]) => `${category}: ${count}`)));
     }
-    return lines.join("\n");
+    return joinCommandLines(lines);
 }
 export function registerZaiTransportCommand(pi) {
     pi.registerCommand("zai-transport", {

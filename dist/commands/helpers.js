@@ -1,4 +1,4 @@
-import { isCodingPlanProvider, isPlatformProvider, isZaiModel } from "../cache/context-policy.js";
+import { isCodingPlanProvider, isPlatformProvider, isZaiModel, } from "../cache/context-policy.js";
 import { endpointLabel } from "../cache/metrics.js";
 import { formatPiCredentialSource } from "../credentials.js";
 export function getZaiCompat(model) {
@@ -109,7 +109,9 @@ export function requireZaiModel(ctx) {
         return { error: "No model selected. Choose a Z.AI model first." };
     }
     if (!isZaiModel(ctx.model)) {
-        return { error: `Active model ${ctx.model.provider}/${ctx.model.id} is not a Z.AI provider.` };
+        return {
+            error: `Active model ${ctx.model.provider}/${ctx.model.id} is not a Z.AI provider.`,
+        };
     }
     return { model: ctx.model };
 }

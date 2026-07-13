@@ -11,6 +11,8 @@ export const EMPTY_USAGE_SUMMARY = {
 export const EMPTY_TRANSPORT_SUMMARY = {
     attempts: 0,
     errors: 0,
+    totalToolCalls: 0,
+    totalToolErrors: 0,
     errorCategories: {},
 };
 function averageLatency(values) {
@@ -24,17 +26,36 @@ export function summarizeTransportFromAttempts(records) {
         return { ...EMPTY_TRANSPORT_SUMMARY };
     const usage = summarizeAttempts(records);
     const errorCategories = {};
+    let totalToolCalls = 0;
+    let totalToolErrors = 0;
+    let toolDurationMsTotal = 0;
+    let toolDurationSamples = 0;
     for (const record of records) {
         if (!record.errorCategory)
             continue;
-        errorCategories[record.errorCategory] = (errorCategories[record.errorCategory] ?? 0) + 1;
+        errorCategories[record.errorCategory] =
+            (errorCategories[record.errorCategory] ?? 0) + 1;
+    }
+    for (const record of records) {
+        totalToolCalls += record.toolCallsInTurn ?? 0;
+        totalToolErrors += record.toolErrorsInTurn ?? 0;
+        if (record.toolDurationMsTotal !== undefined) {
+            toolDurationMsTotal += record.toolDurationMsTotal;
+            toolDurationSamples += 1;
+        }
     }
     return {
         attempts: usage.attempts,
         errors: usage.errors,
         avgRequestToHeadersMs: averageLatency(records.map((record) => record.requestToHeadersMs)),
         avgRequestToFirstDeltaMs: averageLatency(records.map((record) => record.requestToFirstDeltaMs)),
+        avgRequestToFirstToolDeltaMs: averageLatency(records.map((record) => record.requestToFirstToolDeltaMs)),
         avgTotalMs: averageLatency(records.map((record) => record.totalMs)),
+        totalToolCalls,
+        totalToolErrors,
+        avgToolDurationMs: toolDurationSamples > 0
+            ? Math.round(toolDurationMsTotal / toolDurationSamples)
+            : undefined,
         errorCategories,
     };
 }
@@ -50,7 +71,8 @@ export function summarizeAttempts(records) {
     let firstOccurredAt = Number.POSITIVE_INFINITY;
     let lastOccurredAt = 0;
     for (const record of records) {
-        if (record.errorCategory || (record.httpStatus !== undefined && record.httpStatus >= 400))
+        if (record.errorCategory ||
+            (record.httpStatus !== undefined && record.httpStatus >= 400))
             errors += 1;
         inputTokens += record.inputTokens ?? 0;
         cacheReadTokens += record.cacheReadTokens ?? 0;
@@ -96,10 +118,14 @@ const EXPORT_COLUMNS = [
     "outputTokens",
     "requestToHeadersMs",
     "requestToFirstDeltaMs",
+    "requestToFirstToolDeltaMs",
     "totalMs",
     "httpStatus",
     "errorCategory",
     "estimatedApiCostMicrousd",
+    "toolCallsInTurn",
+    "toolErrorsInTurn",
+    "toolDurationMsTotal",
 ];
 function csvCell(value) {
     if (value === undefined || value === null)

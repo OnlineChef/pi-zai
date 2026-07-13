@@ -64,6 +64,9 @@ export interface TransportSummary {
 	avgRequestToFirstDeltaMs?: number;
 	avgRequestToFirstToolDeltaMs?: number;
 	avgTotalMs?: number;
+	totalToolCalls: number;
+	totalToolErrors: number;
+	avgToolDurationMs?: number;
 	errorCategories: Record<string, number>;
 }
 
@@ -144,6 +147,8 @@ export const EMPTY_USAGE_SUMMARY: UsageSummary = {
 export const EMPTY_TRANSPORT_SUMMARY: TransportSummary = {
 	attempts: 0,
 	errors: 0,
+	totalToolCalls: 0,
+	totalToolErrors: 0,
 	errorCategories: {},
 };
 
@@ -166,10 +171,22 @@ export function summarizeTransportFromAttempts(
 
 	const usage = summarizeAttempts(records);
 	const errorCategories: Record<string, number> = {};
+	let totalToolCalls = 0;
+	let totalToolErrors = 0;
+	let toolDurationMsTotal = 0;
+	let toolDurationSamples = 0;
 	for (const record of records) {
 		if (!record.errorCategory) continue;
 		errorCategories[record.errorCategory] =
 			(errorCategories[record.errorCategory] ?? 0) + 1;
+	}
+	for (const record of records) {
+		totalToolCalls += record.toolCallsInTurn ?? 0;
+		totalToolErrors += record.toolErrorsInTurn ?? 0;
+		if (record.toolDurationMsTotal !== undefined) {
+			toolDurationMsTotal += record.toolDurationMsTotal;
+			toolDurationSamples += 1;
+		}
 	}
 
 	return {
@@ -185,6 +202,12 @@ export function summarizeTransportFromAttempts(
 			records.map((record) => record.requestToFirstToolDeltaMs),
 		),
 		avgTotalMs: averageLatency(records.map((record) => record.totalMs)),
+		totalToolCalls,
+		totalToolErrors,
+		avgToolDurationMs:
+			toolDurationSamples > 0
+				? Math.round(toolDurationMsTotal / toolDurationSamples)
+				: undefined,
 		errorCategories,
 	};
 }

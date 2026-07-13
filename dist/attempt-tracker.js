@@ -1,19 +1,57 @@
 export class AttemptTracker {
     inFlight;
+    turnUsage;
     hasInFlight() {
         return this.inFlight !== undefined;
     }
     prepareQueryAttempt(queryId, now = Date.now()) {
+        this.turnUsage = undefined;
         this.inFlight = {
             queryId,
             requestId: `${queryId}-pending`,
             attempt: 0,
             payloadFingerprint: "pending",
+            queryStartedAt: now,
             requestStartedAt: now,
             headersReceivedAt: undefined,
             firstDeltaAt: undefined,
+            firstToolDeltaAt: undefined,
             httpStatus: undefined,
             errorCategory: undefined,
+        };
+    }
+    accumulateTurnUsage(usage) {
+        const current = this.turnUsage ?? {
+            input: 0,
+            cacheRead: 0,
+            cacheWrite: 0,
+            output: 0,
+            costTotal: 0,
+        };
+        current.input += usage.input;
+        current.cacheRead += usage.cacheRead;
+        current.cacheWrite += usage.cacheWrite;
+        current.output += usage.output;
+        current.costTotal += usage.cost.total;
+        this.turnUsage = current;
+    }
+    getTurnUsage() {
+        if (!this.turnUsage)
+            return undefined;
+        const { input, cacheRead, cacheWrite, output, costTotal } = this.turnUsage;
+        return {
+            input,
+            cacheRead,
+            cacheWrite,
+            output,
+            totalTokens: input + cacheRead + cacheWrite + output,
+            cost: {
+                input: 0,
+                output: 0,
+                cacheRead: 0,
+                cacheWrite: 0,
+                total: costTotal,
+            },
         };
     }
     armProviderAttempt(input) {
@@ -33,14 +71,18 @@ export class AttemptTracker {
         this.inFlight.requestStartedAt = input.now ?? Date.now();
     }
     beginAttempt(input) {
+        const previous = this.inFlight;
+        const now = input.now ?? Date.now();
         this.inFlight = {
             queryId: input.queryId,
             requestId: input.requestId,
             attempt: input.attempt,
             payloadFingerprint: input.payloadFingerprint,
-            requestStartedAt: input.now ?? Date.now(),
-            headersReceivedAt: undefined,
-            firstDeltaAt: undefined,
+            queryStartedAt: previous?.queryStartedAt ?? now,
+            requestStartedAt: now,
+            headersReceivedAt: previous?.headersReceivedAt,
+            firstDeltaAt: previous?.firstDeltaAt,
+            firstToolDeltaAt: previous?.firstToolDeltaAt,
             httpStatus: undefined,
             errorCategory: undefined,
         };
@@ -54,6 +96,11 @@ export class AttemptTracker {
         if (!this.inFlight || this.inFlight.firstDeltaAt !== undefined)
             return;
         this.inFlight.firstDeltaAt = now;
+    }
+    markFirstToolDelta(now = Date.now()) {
+        if (!this.inFlight || this.inFlight.firstToolDeltaAt !== undefined)
+            return;
+        this.inFlight.firstToolDeltaAt = now;
     }
     markResponse(status, errorCategory) {
         if (!this.inFlight)
@@ -74,9 +121,13 @@ export class AttemptTracker {
             ? this.inFlight.headersReceivedAt - this.inFlight.requestStartedAt
             : undefined;
         const requestToFirstDeltaMs = this.inFlight.firstDeltaAt !== undefined
-            ? this.inFlight.firstDeltaAt - this.inFlight.requestStartedAt
+            ? this.inFlight.firstDeltaAt - this.inFlight.queryStartedAt
             : undefined;
-        const totalMs = endedAt - this.inFlight.requestStartedAt;
+        const requestToFirstToolDeltaMs = this.inFlight.firstToolDeltaAt !== undefined
+            ? this.inFlight.firstToolDeltaAt - this.inFlight.queryStartedAt
+            : undefined;
+        const totalMs = endedAt - this.inFlight.queryStartedAt;
+        const usage = input.usage ?? this.getTurnUsage();
         const record = {
             occurredAt: endedAt,
             projectId: input.projectId,
@@ -92,22 +143,30 @@ export class AttemptTracker {
             systemFingerprint: input.systemFingerprint,
             toolsetFingerprint: input.toolsetFingerprint,
             payloadFingerprint: this.inFlight.payloadFingerprint,
-            inputTokens: input.usage?.input,
-            cacheReadTokens: input.usage?.cacheRead,
-            cacheWriteTokens: input.usage?.cacheWrite,
-            outputTokens: input.usage?.output,
+            inputTokens: usage?.input,
+            cacheReadTokens: usage?.cacheRead,
+            cacheWriteTokens: usage?.cacheWrite,
+            outputTokens: usage?.output,
             requestToHeadersMs,
             requestToFirstDeltaMs,
+            requestToFirstToolDeltaMs,
             totalMs,
             httpStatus: this.inFlight.httpStatus,
             errorCategory: input.errorCategory ?? this.inFlight.errorCategory,
-            estimatedApiCostMicrousd: input.usage !== undefined ? Math.round(Math.max(0, input.usage.cost.total) * 1_000_000) : undefined,
+            estimatedApiCostMicrousd: usage !== undefined
+                ? Math.round(Math.max(0, usage.cost.total) * 1_000_000)
+                : undefined,
+            toolCallsInTurn: input.toolCallsInTurn,
+            toolErrorsInTurn: input.toolErrorsInTurn,
+            toolDurationMsTotal: input.toolDurationMsTotal,
         };
         this.inFlight = undefined;
+        this.turnUsage = undefined;
         return record;
     }
     reset() {
         this.inFlight = undefined;
+        this.turnUsage = undefined;
     }
 }
 //# sourceMappingURL=attempt-tracker.js.map

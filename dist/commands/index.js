@@ -3,7 +3,7 @@ import { formatPiCredentialSource } from "../credentials.js";
 import { registerZaiBenchmarkCommand } from "./benchmark.js";
 import { registerZaiCacheCommand } from "./cache.js";
 import { registerZaiDataCommand } from "./data.js";
-import { isPlatformProviderRegistered, resolveModelForEndpoint } from "./deps.js";
+import { isPlatformProviderRegistered, resolveModelForEndpoint, } from "./deps.js";
 import { registerZaiDoctorCommand } from "./doctor.js";
 import { registerZaiEndpointCommand } from "./endpoint.js";
 import { registerZaiPrivacyCommand } from "./privacy.js";

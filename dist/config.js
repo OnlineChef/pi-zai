@@ -7,8 +7,16 @@ const DEFAULT_METRICS = {
     rollupRetentionDays: 180,
     maxDatabaseBytes: 32 * 1024 * 1024,
 };
-const PROMPT_STABILITY_MODES = new Set(["off", "observe", "safe"]);
-const SESSION_AFFINITY_MODES = new Set(["off", "observe", "experimental"]);
+const PROMPT_STABILITY_MODES = new Set([
+    "off",
+    "observe",
+    "safe",
+]);
+const SESSION_AFFINITY_MODES = new Set([
+    "off",
+    "observe",
+    "experimental",
+]);
 const METRICS_MODES = new Set(["off", "memory", "local"]);
 const TELEMETRY_MODES = new Set(["off", "aggregate"]);
 function readSettingsFile(path) {
@@ -17,7 +25,9 @@ function readSettingsFile(path) {
     try {
         const raw = readFileSync(path, "utf-8");
         const parsed = JSON.parse(raw);
-        return typeof parsed === "object" && parsed !== null ? parsed : undefined;
+        return typeof parsed === "object" && parsed !== null
+            ? parsed
+            : undefined;
     }
     catch {
         return undefined;
@@ -28,17 +38,27 @@ function readZaiSettingsSection(cwd) {
     const project = readSettingsFile(join(cwd, CONFIG_DIR_NAME, "settings.json"));
     const globalZai = global?.zai;
     const projectZai = project?.zai;
-    if ((globalZai === undefined || typeof globalZai !== "object" || globalZai === null) &&
-        (projectZai === undefined || typeof projectZai !== "object" || projectZai === null)) {
+    if ((globalZai === undefined ||
+        typeof globalZai !== "object" ||
+        globalZai === null) &&
+        (projectZai === undefined ||
+            typeof projectZai !== "object" ||
+            projectZai === null)) {
         return undefined;
     }
     return {
-        ...(typeof globalZai === "object" && globalZai !== null ? globalZai : {}),
-        ...(typeof projectZai === "object" && projectZai !== null ? projectZai : {}),
+        ...(typeof globalZai === "object" && globalZai !== null
+            ? globalZai
+            : {}),
+        ...(typeof projectZai === "object" && projectZai !== null
+            ? projectZai
+            : {}),
     };
 }
 function parseEnum(value, allowed, fallback) {
-    return typeof value === "string" && allowed.has(value) ? value : fallback;
+    return typeof value === "string" && allowed.has(value)
+        ? value
+        : fallback;
 }
 function parsePositiveInt(value, fallback) {
     if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
@@ -57,7 +77,8 @@ function loadMetricsConfig(settings) {
 }
 function loadTelemetryConfig(settings) {
     const telemetry = settings?.telemetry;
-    const ingestUrl = typeof telemetry?.ingestUrl === "string" && telemetry.ingestUrl.trim().length > 0
+    const ingestUrl = typeof telemetry?.ingestUrl === "string" &&
+        telemetry.ingestUrl.trim().length > 0
         ? telemetry.ingestUrl.trim()
         : undefined;
     return {

@@ -118,7 +118,9 @@ export function formatBenchmarkInstructions(variantId, scenarioId) {
     if (!variant) {
         return `Unknown variant "${variantId}". Use A0, A1, A2, or A3.`;
     }
-    const scenario = scenarioId ? findBenchmarkScenario(scenarioId) : BENCHMARK_SCENARIOS[0];
+    const scenario = scenarioId
+        ? findBenchmarkScenario(scenarioId)
+        : BENCHMARK_SCENARIOS[0];
     if (!scenario) {
         return `Unknown scenario "${scenarioId}".`;
     }
@@ -129,10 +131,12 @@ export function formatBenchmarkInstructions(variantId, scenarioId) {
         variant.description,
         "",
         "Setup:",
-        variant.extensionLoaded ? "  1. Install pi-zai and /reload" : "  1. Run Pi without pi-zai (A0 control)",
-        `  2. Apply settings in .pi/settings.json or ~/.pi/agent/settings.json:`,
+        variant.extensionLoaded
+            ? "  1. Install pi-zai and /reload"
+            : "  1. Run Pi without pi-zai (A0 control)",
+        "  2. Apply settings in .pi/settings.json or ~/.pi/agent/settings.json:",
         ...settingsJson.split("\n").map((line) => `     ${line}`),
-        `  3. Select the same Z.AI model/provider across variants`,
+        "  3. Select the same Z.AI model/provider across variants",
         `  4. Run scenario "${scenario.label}" (${scenario.turns} turns)`,
         `     ${scenario.description}`,
         "",

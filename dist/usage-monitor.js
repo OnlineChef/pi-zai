@@ -80,7 +80,9 @@ export async function fetchQuotaLimit(monitorBase, apiKey, options = {}) {
                 lastError = result.error;
             }
             catch (error) {
-                const cause = error instanceof Error && "cause" in error && error.cause instanceof Error
+                const cause = error instanceof Error &&
+                    "cause" in error &&
+                    error.cause instanceof Error
                     ? error.cause.message
                     : undefined;
                 lastError = cause
@@ -135,7 +137,9 @@ export function formatQuotaLimit(data, now = Date.now()) {
             const cap = entry.usage ?? 0;
             lines.push(`  ${label} ${used}/${cap} (${entry.percentage}%) ${bar(entry.percentage)} ${reset}`.trimEnd());
             if (entry.usageDetails?.length) {
-                const detail = entry.usageDetails.map((d) => `${d.modelCode}: ${d.usage}`).join(" · ");
+                const detail = entry.usageDetails
+                    .map((d) => `${d.modelCode}: ${d.usage}`)
+                    .join(" · ");
                 lines.push(`    ${detail}`);
             }
         }

@@ -7,7 +7,10 @@ import {
 	getTpsTracker,
 	sessionState,
 } from "../state.ts";
-import { formatTpsTelemetryLines } from "../telemetry/tps.ts";
+import {
+	formatTpsTelemetryLines,
+	formatTurnThroughputLines,
+} from "../telemetry/tps.ts";
 import { formatToolSessionLines } from "../tool-tracker.ts";
 import { getCacheMetricsStore } from "./cache-state.ts";
 import type { ZaiCommandDeps } from "./deps.ts";
@@ -114,7 +117,10 @@ export function registerZaiStatusCommand(
 				...formatSection("Last usage", [
 					lastUsage ? formatUsageLine(lastUsage) : "none",
 				]),
-				...formatSection("Throughput", formatTpsTelemetryLines(tpsStats)),
+				...formatSection("Throughput", [
+					...formatTpsTelemetryLines(tpsStats),
+					...formatTurnThroughputLines(tpsStats.turn),
+				]),
 				...formatSection("Tools", formatToolSessionLines(toolStats)),
 				...formatSection("Cache", [
 					`Last request hit ratio: ${lastHitRatio !== undefined ? formatPercent(lastHitRatio) : "n/a"}`,
