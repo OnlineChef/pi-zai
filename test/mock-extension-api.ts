@@ -254,5 +254,26 @@ export async function runExtensionLifecycle(
 	);
 	await pi.trigger("session_before_tree", { type: "session_before_tree" }, ctx);
 	await pi.trigger("agent_settled", { type: "agent_settled" }, ctx);
+	await pi.trigger(
+		"tool_execution_start",
+		{
+			type: "tool_execution_start",
+			toolCallId: "tool-1",
+			toolName: "read",
+			args: {},
+		},
+		ctx,
+	);
+	await pi.trigger(
+		"tool_execution_end",
+		{
+			type: "tool_execution_end",
+			toolCallId: "tool-1",
+			toolName: "read",
+			result: {},
+			isError: false,
+		},
+		ctx,
+	);
 	await pi.trigger("session_shutdown", { type: "session_shutdown" }, ctx);
 }

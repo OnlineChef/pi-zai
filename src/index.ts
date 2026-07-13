@@ -34,12 +34,14 @@ import {
 	getCacheMetricsStore,
 	getMetricsStorage,
 	getQueryCorrelation,
+	getToolExecutionTracker,
 	getTpsTracker,
 	inferEndpoint,
 	isZaiProvider,
 	newSessionAffinityId,
 	resetCacheMetrics,
 	resetCorrelationState,
+	resetToolMetrics,
 	resetTpsMetrics,
 	sessionState,
 	setMetricsStorage,
@@ -187,6 +189,7 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 		if (event.reason !== "reload") {
 			resetCacheMetrics();
 			resetTpsMetrics();
+			resetToolMetrics();
 			resetCorrelationState();
 			sessionState.sessionAffinityId = newSessionAffinityId();
 			sessionState.activeBenchmarkRunId = undefined;
@@ -228,6 +231,7 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 	pi.on("session_shutdown", async (_event, ctx) => {
 		resetCacheMetrics();
 		resetTpsMetrics();
+		resetToolMetrics();
 		sessionState.activeBenchmarkRunId = undefined;
 		setMetricsStorage(undefined);
 		clearZaiStatus(ctx);
@@ -289,7 +293,16 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 		if (!ctx.model || !isZaiModel(ctx.model)) return;
 		const queryId = getQueryCorrelation().beginQuery();
 		getAttemptTracker().prepareQueryAttempt(queryId);
-		const toolNames = pi.getActiveTools().map((name) => ({ name }));
+		getToolExecutionTracker().beginTurn();
+		const activeToolNames = new Set(pi.getActiveTools());
+		const toolsForFingerprint = pi
+			.getAllTools()
+			.filter((tool) => activeToolNames.has(tool.name))
+			.map((tool) => ({
+				name: tool.name,
+				description: tool.description,
+				parameters: tool.parameters,
+			}));
 		let systemPromptForMetrics = event.systemPrompt;
 		if (config.promptStabilityMode === "safe") {
 			const normalized = applySafePromptNormalization(event.systemPrompt);
@@ -297,7 +310,7 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 				systemPromptForMetrics = normalized;
 			}
 		}
-		updateCacheSegment(ctx.model, systemPromptForMetrics, toolNames);
+		updateCacheSegment(ctx.model, systemPromptForMetrics, toolsForFingerprint);
 		sessionState.promptStability = snapshotPromptStability(
 			systemPromptForMetrics,
 		);
@@ -323,6 +336,7 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 			const assistant = event.message as AssistantMessage;
 			const segment = getCacheMetricsStore().get()?.segment;
 			ensureAttemptTrackingForTurnEnd();
+			const turnTools = getToolExecutionTracker().getTurnStats();
 			const record = getAttemptTracker().buildRecord({
 				projectId: sessionState.projectId ?? projectIdForCwd(ctx.cwd),
 				sessionHash:
@@ -340,6 +354,9 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 					assistant.stopReason === "error"
 						? classifyTransportError(assistant.errorMessage, undefined)
 						: undefined,
+				toolCallsInTurn: turnTools.executions,
+				toolErrorsInTurn: turnTools.errors,
+				toolDurationMsTotal: turnTools.totalMs,
 			});
 			if (record) {
 				getMetricsStorage()?.recordAttempt(record);
@@ -378,6 +395,25 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 			ctx.ui.notify(formatConnectionErrorHint(ctx.model), "warning");
 			return;
 		}
+	});
+
+	pi.on("tool_execution_start", async (event, ctx) => {
+		if (!ctx.model || !isZaiModel(ctx.model)) return;
+		getAttemptTracker().markFirstToolDelta();
+		getToolExecutionTracker().begin(
+			event.toolCallId,
+			event.toolName,
+			getQueryCorrelation().currentQueryIdOrUndefined(),
+		);
+	});
+
+	pi.on("tool_execution_end", async (event, ctx) => {
+		if (!ctx.model || !isZaiModel(ctx.model)) return;
+		getToolExecutionTracker().complete(
+			event.toolCallId,
+			event.toolName,
+			event.isError,
+		);
 	});
 
 	pi.on("before_provider_request", async (event, ctx) => {

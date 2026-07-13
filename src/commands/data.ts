@@ -7,6 +7,14 @@ import {
 	projectIdForCwd,
 } from "../storage/project-id.ts";
 import type { ZaiCommandDeps } from "./deps.ts";
+import {
+	formatBytes,
+	formatHeading,
+	formatKeyValue,
+	formatSection,
+	joinCommandLines,
+} from "./format.ts";
+import { formatPercent } from "./helpers.ts";
 
 function resolveProjectId(cwd: string): string {
 	return sessionState.projectId ?? projectIdForCwd(cwd);
@@ -23,13 +31,6 @@ const ACTIONS = [
 	"vacuum",
 ] as const;
 
-function formatBytes(bytes: number | undefined): string {
-	if (bytes === undefined) return "unknown";
-	if (bytes < 1024) return `${bytes} B`;
-	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-	return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
 function formatStatus(cwd: string): string {
 	const storage = getMetricsStorage();
 	if (!storage) {
@@ -40,19 +41,28 @@ function formatStatus(cwd: string): string {
 	const status = storage.getStatus();
 	const summary = storage.getUsageSummary({ projectId });
 	const lines = [
-		"Z.AI local metrics",
-		`  Storage: ${status.kind}${status.degraded ? " (degraded)" : ""}`,
-		`  Location: ${status.location ?? "memory"}`,
-		`  Database size: ${formatBytes(status.databaseBytes)}`,
-		`  Detail rows: ${status.detailRows}`,
-		`  Rollup rows: ${status.rollupRows}`,
-		`  Benchmark rows: ${status.benchmarkRows}`,
-		`  Project hash: ${projectId}`,
-		`  Session hash: ${sessionState.sessionHash ?? "unknown"}`,
-		`  Attempts (project): ${summary.attempts}`,
-		`  Cache hit ratio (project): ${summary.cacheHitRatio > 0 ? `${(summary.cacheHitRatio * 100).toFixed(1)}%` : "n/a"}`,
+		...formatHeading("Z.AI local metrics"),
+		formatKeyValue(
+			"Storage",
+			`${status.kind}${status.degraded ? " (degraded)" : ""}`,
+		),
+		formatKeyValue("Location", status.location ?? "memory"),
+		formatKeyValue("Database size", formatBytes(status.databaseBytes)),
+		...formatSection("Rows", [
+			`Detail: ${status.detailRows}`,
+			`Rollup: ${status.rollupRows}`,
+			`Benchmark: ${status.benchmarkRows}`,
+		]),
+		...formatSection("Scope", [
+			`Project hash: ${projectId}`,
+			`Session hash: ${sessionState.sessionHash ?? "unknown"}`,
+		]),
+		...formatSection("Project usage", [
+			`Attempts: ${summary.attempts}`,
+			`Cache hit ratio: ${summary.cacheHitRatio > 0 ? formatPercent(summary.cacheHitRatio) : "n/a"}`,
+		]),
 	];
-	return lines.join("\n");
+	return joinCommandLines(lines);
 }
 
 export function registerZaiDataCommand(

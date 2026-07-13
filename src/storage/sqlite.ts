@@ -13,7 +13,11 @@ import {
 	utcDayFromMs,
 } from "./anonymous-daily.ts";
 import { MemoryStorage } from "./memory.ts";
-import { INITIAL_SCHEMA_SQL, SCHEMA_VERSION } from "./migrations.ts";
+import {
+	INITIAL_SCHEMA_SQL,
+	SCHEMA_MIGRATIONS,
+	SCHEMA_VERSION,
+} from "./migrations.ts";
 import {
 	type AnonymousDailySummary,
 	type CleanupResult,
@@ -43,12 +47,14 @@ INSERT INTO provider_attempts (
   provider, model, endpoint_kind, thinking_level, pi_version, extension_version,
   system_fingerprint, toolset_fingerprint, payload_fingerprint,
   input_tokens, cache_read_tokens, cache_write_tokens, output_tokens,
-  request_to_headers_ms, request_to_first_delta_ms, total_ms,
-  http_status, error_category, estimated_api_cost_microusd
+  request_to_headers_ms, request_to_first_delta_ms, request_to_first_tool_delta_ms, total_ms,
+  http_status, error_category, estimated_api_cost_microusd,
+  tool_calls_in_turn, tool_errors_in_turn, tool_duration_ms_total
 ) VALUES (
   ?, ?, ?, ?, ?, ?,
   ?, ?, ?, ?, ?, ?,
   ?, ?, ?,
+  ?, ?, ?, ?,
   ?, ?, ?, ?,
   ?, ?, ?,
   ?, ?, ?
@@ -107,6 +113,7 @@ export class NodeSqliteStorage implements MetricsStorage {
 		database.exec("PRAGMA auto_vacuum = INCREMENTAL;");
 		database.exec("PRAGMA busy_timeout = 25;");
 		database.exec(INITIAL_SCHEMA_SQL);
+		migrateSchema(database);
 		database
 			.prepare(
 				"INSERT INTO schema_meta(key, value) VALUES ('schema_version', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
@@ -146,10 +153,14 @@ export class NodeSqliteStorage implements MetricsStorage {
 				record.outputTokens ?? null,
 				record.requestToHeadersMs ?? null,
 				record.requestToFirstDeltaMs ?? null,
+				record.requestToFirstToolDeltaMs ?? null,
 				record.totalMs ?? null,
 				record.httpStatus ?? null,
 				record.errorCategory ?? null,
 				record.estimatedApiCostMicrousd ?? null,
+				record.toolCallsInTurn ?? null,
+				record.toolErrorsInTurn ?? null,
+				record.toolDurationMsTotal ?? null,
 			);
 		} catch (error) {
 			this.degrade(error);
@@ -237,6 +248,7 @@ SELECT
   COALESCE(SUM(CASE WHEN error_category IS NOT NULL OR http_status >= 400 THEN 1 ELSE 0 END), 0) AS errors,
   AVG(request_to_headers_ms) AS avg_request_to_headers_ms,
   AVG(request_to_first_delta_ms) AS avg_request_to_first_delta_ms,
+  AVG(request_to_first_tool_delta_ms) AS avg_request_to_first_tool_delta_ms,
   AVG(total_ms) AS avg_total_ms
 FROM provider_attempts${detailQuery.where}`)
 				.get(...detailQuery.values) as SqlRow;
@@ -269,6 +281,9 @@ GROUP BY error_category`)
 				),
 				avgRequestToFirstDeltaMs: roundOptionalAverage(
 					row.avg_request_to_first_delta_ms,
+				),
+				avgRequestToFirstToolDeltaMs: roundOptionalAverage(
+					row.avg_request_to_first_tool_delta_ms,
 				),
 				avgTotalMs: roundOptionalAverage(row.avg_total_ms),
 				errorCategories,
@@ -850,11 +865,40 @@ function rowToRecord(row: SqlRow): ProviderAttemptRecord {
 		outputTokens: optionalNumber(row.output_tokens),
 		requestToHeadersMs: optionalNumber(row.request_to_headers_ms),
 		requestToFirstDeltaMs: optionalNumber(row.request_to_first_delta_ms),
+		requestToFirstToolDeltaMs: optionalNumber(
+			row.request_to_first_tool_delta_ms,
+		),
 		totalMs: optionalNumber(row.total_ms),
 		httpStatus: optionalNumber(row.http_status),
 		errorCategory: optionalString(row.error_category),
 		estimatedApiCostMicrousd: optionalNumber(row.estimated_api_cost_microusd),
+		toolCallsInTurn: optionalNumber(row.tool_calls_in_turn),
+		toolErrorsInTurn: optionalNumber(row.tool_errors_in_turn),
+		toolDurationMsTotal: optionalNumber(row.tool_duration_ms_total),
 	};
+}
+
+function migrateSchema(database: DatabaseSync): void {
+	const current = Number(
+		(
+			database
+				.prepare("SELECT value FROM schema_meta WHERE key = 'schema_version'")
+				.get() as SqlRow | undefined
+		)?.value ?? 1,
+	);
+	for (let version = current + 1; version <= SCHEMA_VERSION; version += 1) {
+		const statements = SCHEMA_MIGRATIONS[version] ?? [];
+		for (const statement of statements) {
+			try {
+				database.exec(statement);
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				if (!/duplicate column name/i.test(message)) {
+					throw error;
+				}
+			}
+		}
+	}
 }
 
 function count(

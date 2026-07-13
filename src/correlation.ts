@@ -46,6 +46,10 @@ export class QueryCorrelation {
 		return this.currentQueryId;
 	}
 
+	currentQueryIdOrUndefined(): string | undefined {
+		return this.currentQueryId;
+	}
+
 	nextAttempt(): { queryId: string; requestId: string; attempt: number } {
 		if (!this.currentQueryId) {
 			this.beginQuery();

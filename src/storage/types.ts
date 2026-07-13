@@ -29,10 +29,14 @@ export interface ProviderAttemptRecord {
 	outputTokens?: number;
 	requestToHeadersMs?: number;
 	requestToFirstDeltaMs?: number;
+	requestToFirstToolDeltaMs?: number;
 	totalMs?: number;
 	httpStatus?: number;
 	errorCategory?: string;
 	estimatedApiCostMicrousd?: number;
+	toolCallsInTurn?: number;
+	toolErrorsInTurn?: number;
+	toolDurationMsTotal?: number;
 }
 
 export interface UsageFilter {
@@ -58,6 +62,7 @@ export interface TransportSummary {
 	errors: number;
 	avgRequestToHeadersMs?: number;
 	avgRequestToFirstDeltaMs?: number;
+	avgRequestToFirstToolDeltaMs?: number;
 	avgTotalMs?: number;
 	errorCategories: Record<string, number>;
 }
@@ -176,6 +181,9 @@ export function summarizeTransportFromAttempts(
 		avgRequestToFirstDeltaMs: averageLatency(
 			records.map((record) => record.requestToFirstDeltaMs),
 		),
+		avgRequestToFirstToolDeltaMs: averageLatency(
+			records.map((record) => record.requestToFirstToolDeltaMs),
+		),
 		avgTotalMs: averageLatency(records.map((record) => record.totalMs)),
 		errorCategories,
 	};
@@ -247,10 +255,14 @@ const EXPORT_COLUMNS = [
 	"outputTokens",
 	"requestToHeadersMs",
 	"requestToFirstDeltaMs",
+	"requestToFirstToolDeltaMs",
 	"totalMs",
 	"httpStatus",
 	"errorCategory",
 	"estimatedApiCostMicrousd",
+	"toolCallsInTurn",
+	"toolErrorsInTurn",
+	"toolDurationMsTotal",
 ] as const satisfies readonly (keyof ProviderAttemptRecord)[];
 
 function csvCell(value: unknown): string {

@@ -11,6 +11,7 @@ import { CacheMetricsStore } from "./cache/metrics.ts";
 import { QueryCorrelation } from "./correlation.ts";
 import type { MetricsStorage } from "./storage/types.ts";
 import { TpsTracker } from "./telemetry/tps.ts";
+import { ToolExecutionTracker } from "./tool-tracker.ts";
 
 export type ZaiEndpointKind = "coding" | "platform" | "coding-cn" | "unknown";
 
@@ -108,6 +109,7 @@ let tpsTracker = new TpsTracker();
 let metricsStorage: MetricsStorage | undefined;
 let queryCorrelation = new QueryCorrelation();
 let attemptTracker = new AttemptTracker();
+let toolExecutionTracker = new ToolExecutionTracker();
 let lastMetricsCleanupDay: string | undefined;
 
 export function getCacheMetricsStore(): CacheMetricsStore {
@@ -135,9 +137,17 @@ export function getAttemptTracker(): AttemptTracker {
 	return attemptTracker;
 }
 
+export function getToolExecutionTracker(): ToolExecutionTracker {
+	return toolExecutionTracker;
+}
+
 export function resetCorrelationState(): void {
 	queryCorrelation = new QueryCorrelation();
 	attemptTracker = new AttemptTracker();
+}
+
+export function resetToolMetrics(): void {
+	toolExecutionTracker = new ToolExecutionTracker();
 }
 
 export function resetCacheMetrics(): void {

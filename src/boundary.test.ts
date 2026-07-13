@@ -5,8 +5,9 @@
  * fetch. They never start a real Pi session, never call a model, and never hit
  * the network unless a test explicitly exercises telemetry upload.
  *
- * runExtensionLifecycle() fires 15 in-process hook handlers (all pi.on() in
- * index.ts) to prove a typical session path stays local when telemetry is off.
+ * runExtensionLifecycle() fires the pi.on() handlers from index.ts in-process
+ * (including tool_execution_start/end) to prove a typical session path stays
+ * local when telemetry is off.
  */
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -104,7 +105,7 @@ describe("extension boundary (runtime)", () => {
 	});
 
 	it("does not call fetch across the full extension lifecycle when telemetry is off", async () => {
-		// Mock lifecycle: 15 hook triggers, zero network/LLM — see file header.
+		// Mock lifecycle: in-process hook triggers, zero network/LLM — see file header.
 		const cwd = tempCwd();
 		const pi = createMockExtensionApi({ cwd, model: createZaiModel() });
 		piZaiExtension(pi);
