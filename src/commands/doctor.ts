@@ -228,7 +228,7 @@ export function registerZaiDoctorCommand(
 					name: "GLM-5.2 thinkingLevelMap",
 					status: glm52ThinkingMapOk(thinkingModel) ? "pass" : "warn",
 					detail: glm52ThinkingMapOk(thinkingModel)
-						? "off/high/xhigh exposed; xhigh maps to Z.AI `max`; minimal/low/medium hidden (clamp to high)"
+						? "off/high/xhigh exposed; xhigh maps to Z.AI `max`"
 						: "Unexpected thinkingLevelMap on active or default model",
 				});
 			} else {

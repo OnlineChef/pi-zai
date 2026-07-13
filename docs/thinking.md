@@ -12,9 +12,8 @@ high
 xhigh
 ```
 
-`xhigh` maps to Z.AI `reasoning_effort: "max"` (the strongest Z.AI effort). Other Pi
-levels (`minimal`, `low`, `medium`) are hidden via `thinkingLevelMap` and clamp up
-to `high`.
+`xhigh` maps to Z.AI `reasoning_effort: "max"` (the strongest Z.AI effort). Z.AI only
+exposes `high`, `max`, and disabled — Pi-only levels are hidden via `thinkingLevelMap`.
 
 > Note: Z.AI exposes three efforts natively — `high`, `max`, and disabled. The Pi
 > `max` slot exists in the map for documentation but is not selectable from the
@@ -35,7 +34,6 @@ Upstream Pi maps levels to Z.AI request fields:
 | Pi level | Z.AI request |
 |----------|----------------|
 | `off` | `thinking: { type: "disabled", clear_thinking: true }` |
-| `minimal`/`low`/`medium` | clamp up to `high`: `reasoning_effort: "high"` |
 | `high` | `thinking: { type: "enabled", clear_thinking: true }`, `reasoning_effort: "high"` |
 | `xhigh` | `thinking: { type: "enabled", clear_thinking: true }`, `reasoning_effort: "max"` |
 
