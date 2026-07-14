@@ -51,6 +51,8 @@ const FORBIDDEN_KEY_NAMES = [
 	"requestid",
 	"request_id",
 	"fingerprint",
+	"prompt",
+	"path",
 	"cwd",
 	"hostname",
 	"installid",

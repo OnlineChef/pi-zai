@@ -48,6 +48,17 @@ describe("ToolExecutionTracker", () => {
 		expect(tracker.get().executions).toBe(1);
 	});
 
+	it("ignores orphan tool_execution_end events", () => {
+		const tracker = new ToolExecutionTracker();
+		expect(tracker.complete("missing", "read", false, 100)).toBeUndefined();
+		expect(tracker.get().executions).toBe(0);
+		expect(tracker.getTurnStats()).toEqual({
+			executions: 0,
+			errors: 0,
+			totalMs: 0,
+		});
+	});
+
 	it("formats an empty session clearly", () => {
 		expect(formatToolSessionLines(new ToolExecutionTracker().get())).toEqual([
 			"  none yet",

@@ -140,4 +140,55 @@ describe("AttemptTracker lifecycle", () => {
 		expect(record?.requestToFirstDeltaMs).toBe(200);
 		expect(record?.totalMs).toBe(1500);
 	});
+
+	it("resets header timing on tool-loop provider rounds", () => {
+		const tracker = new AttemptTracker();
+		tracker.prepareQueryAttempt("q-1", 1000);
+		tracker.armProviderAttempt({
+			requestId: "q-1-a1",
+			attempt: 1,
+			payloadFingerprint: "fp1",
+			now: 1000,
+		});
+		tracker.markHeadersReceived(1100);
+		tracker.markFirstDelta(1200);
+
+		// Second LLM call in the same turn (tool loop) — not a transport retry.
+		tracker.beginAttempt({
+			queryId: "q-1",
+			requestId: "q-1-a2",
+			attempt: 2,
+			payloadFingerprint: "fp2",
+			now: 3000,
+		});
+		tracker.markHeadersReceived(3150);
+
+		const record = tracker.buildRecord({
+			projectId: "project-a",
+			sessionHash: "session-a",
+			provider: "zai",
+			model: "glm-5.2",
+			endpointKind: "coding",
+			extensionVersion: "0.3.0",
+			occurredAt: 3500,
+		});
+
+		expect(record?.requestToHeadersMs).toBe(150);
+		expect(record?.requestToFirstDeltaMs).toBe(200);
+		expect(record?.attempt).toBe(2);
+	});
+
+	it("reports pending until a provider attempt is armed", () => {
+		const tracker = new AttemptTracker();
+		expect(tracker.isPending()).toBe(false);
+		tracker.prepareQueryAttempt("q-1", 1000);
+		expect(tracker.isPending()).toBe(true);
+		tracker.armProviderAttempt({
+			requestId: "q-1-a1",
+			attempt: 1,
+			payloadFingerprint: "fp",
+			now: 1100,
+		});
+		expect(tracker.isPending()).toBe(false);
+	});
 });

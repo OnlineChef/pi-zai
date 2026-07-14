@@ -11,7 +11,7 @@ Bind this worker to that path on the `api.chefgroep.online` zone (dashboard or s
 ## Deploy
 
 ```bash
-cd packages/pi-zai/worker/telemetry
+cd worker/telemetry
 npm install
 npm run check
 npx wrangler deploy

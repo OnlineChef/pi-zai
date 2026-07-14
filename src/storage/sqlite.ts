@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, rmSync, statSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, rmSync, statSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync, type StatementSync } from "node:sqlite";
 import type {
@@ -103,9 +103,20 @@ export class NodeSqliteStorage implements MetricsStorage {
 	}
 
 	initialize(): void {
-		mkdirSync(dirname(this.options.databasePath), { recursive: true });
+		const directory = dirname(this.options.databasePath);
+		mkdirSync(directory, { recursive: true, mode: 0o700 });
+		try {
+			chmodSync(directory, 0o700);
+		} catch {
+			// Best-effort on platforms that ignore POSIX modes.
+		}
 		const database = new DatabaseSync(this.options.databasePath);
 		this.database = database;
+		try {
+			chmodSync(this.options.databasePath, 0o600);
+		} catch {
+			// Best-effort harden the SQLite file after creation.
+		}
 		database.exec("PRAGMA journal_mode = WAL;");
 		database.exec("PRAGMA synchronous = NORMAL;");
 		database.exec("PRAGMA foreign_keys = ON;");

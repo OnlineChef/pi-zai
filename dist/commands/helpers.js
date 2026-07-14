@@ -74,6 +74,8 @@ export function getSessionUsageTotals(ctx) {
             continue;
         const assistant = entry.message;
         const usage = assistant.usage;
+        if (!usage)
+            continue;
         totals.input += usage.input;
         totals.output += usage.output;
         totals.cacheRead += usage.cacheRead;

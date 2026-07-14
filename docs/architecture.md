@@ -113,7 +113,7 @@ Encrypted diagnostic bundles (preview + confirm) are a separate optional later p
 |---------|--------|
 | `.pi/settings.json` (project) | Overrides global `zai.*` |
 | `~/.pi/agent/settings.json` | Global defaults |
-| Env vars | Pi credential resolution only — **no `PI_ZAI_*` overrides** |
+| Env vars | Pi credential resolution only — **no runtime `PI_ZAI_*` overrides** (dev-only `PI_ZAI_AB_*` for the live benchmark script) |
 
 See [Configuration](configuration.md).
 
