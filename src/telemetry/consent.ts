@@ -1,4 +1,10 @@
-import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+	chmodSync,
+	existsSync,
+	readFileSync,
+	rmSync,
+	writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { getPiZaiStateDir } from "../storage/state-dir.ts";
 
@@ -15,6 +21,11 @@ export function readTelemetryConsent(): TelemetryConsent | undefined {
 	const path = telemetryConsentPath();
 	if (!existsSync(path)) return undefined;
 	try {
+		chmodSync(path, 0o600);
+	} catch {
+		// Best-effort harden existing consent files.
+	}
+	try {
 		const parsed = JSON.parse(readFileSync(path, "utf-8")) as TelemetryConsent;
 		return parsed?.schema === 1 && typeof parsed.optedInAt === "number"
 			? parsed
@@ -29,8 +40,13 @@ export function writeTelemetryConsent(now = Date.now()): void {
 	writeFileSync(
 		path,
 		`${JSON.stringify({ schema: 1, optedInAt: now } satisfies TelemetryConsent, null, 2)}\n`,
-		"utf-8",
+		{ encoding: "utf-8", mode: 0o600 },
 	);
+	try {
+		chmodSync(path, 0o600);
+	} catch {
+		// Best-effort on platforms that ignore POSIX modes.
+	}
 }
 
 export function clearTelemetryConsent(): void {

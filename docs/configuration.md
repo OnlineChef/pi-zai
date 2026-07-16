@@ -55,7 +55,7 @@ pi-zai does **not** auto-register `zai-platform`. Add it manually in `models.jso
 
 | Model | Context | Notes |
 |-------|---------|-------|
-| `glm-5.2` | 1M | Native `off`/`high`/`max` thinking |
+| `glm-5.2` | 1M | Native `off`/`high`/`xhigh` thinking (`xhigh` → Z.AI `max`) |
 | `glm-5.1` | 200K | Tool streaming |
 | `glm-5` | 200K | |
 | `glm-5-turbo` | 200K | |

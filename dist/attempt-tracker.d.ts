@@ -4,6 +4,8 @@ export declare class AttemptTracker {
     private inFlight;
     private turnUsage;
     hasInFlight(): boolean;
+    /** True when prepareQueryAttempt ran but no provider request armed yet. */
+    isPending(): boolean;
     prepareQueryAttempt(queryId: string, now?: number): void;
     accumulateTurnUsage(usage: Usage): void;
     getTurnUsage(): Usage | undefined;

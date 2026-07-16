@@ -177,6 +177,7 @@ Optional encrypted diagnostic bundles (preview + confirm) are a separate later p
 
 The package includes source-level tests that assert:
 
-- Remote `fetch` isolated to `telemetry/uploader.ts`
+- Telemetry upload `fetch` is isolated to `telemetry/uploader.ts` (doctor/usage/resilience/benchmark fetch only on explicit commands or live scripts)
 - Privacy preview does not call the network
+- Full extension lifecycle makes no network calls when telemetry is off
 - `zai-telemetry` command and aggregate mode registered in config

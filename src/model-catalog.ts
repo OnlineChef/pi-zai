@@ -3,7 +3,7 @@ import type { ProviderModelConfig } from "@earendil-works/pi-coding-agent";
 /** Verified against https://docs.z.ai/guides/overview/pricing (USD per 1M tokens). */
 export const PLATFORM_BASE_URL = "https://api.z.ai/api/paas/v4";
 
-/** `null` hides Pi-only levels that Z.AI does not expose (off/high/max are the native efforts). */
+/** `null` hides Pi-only levels that Z.AI does not expose (high/max are the native efforts; Pi xhigh maps to max). */
 export const GLM52_THINKING_LEVEL_MAP = {
 	minimal: null,
 	low: null,

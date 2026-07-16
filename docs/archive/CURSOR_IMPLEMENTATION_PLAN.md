@@ -1,5 +1,7 @@
 # Cursor implementation plan: native Pi Z.ai extension
 
+> **Archived (2026-07-14).** Historical plan for the native Pi Z.ai extension work through v0.2–v0.3.0. Not authoritative for current behavior — see `README.md`, `docs/architecture.md`, and `CHANGELOG.md`. Kept for provenance only.
+
 > Execute this plan in the existing `OnlineChefGroep/pi-zai` repository. Do not create a new repository, provider proxy, agent runtime, model router, GPU/self-hosted layer, or multi-CLI abstraction.
 
 ## 0. Mission

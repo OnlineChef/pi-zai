@@ -10,9 +10,20 @@ All notable changes to `@onlinechefgroep/pi-zai` are documented in this file.
 
 ### Changed
 
+- Docs and package description updated for the standalone repo layout (no `packages/pi-zai` path)
+- Archived stale `CURSOR_IMPLEMENTATION_PLAN.md` under `docs/archive/`
+
 ### Fixed
 
-- GLM-5.2 `thinkingLevelMap`: `xhigh` now maps to Z.AI `reasoning_effort: "max"` instead of forwarding the raw Pi level string. Previously `xhigh` was `null` in the map but Pi-core still treated it as selectable (its `null !== undefined` special case), so selecting `xhigh` sent an undocumented `reasoning_effort="xhigh"` to Z.AI. The strongest Z.AI effort is now reachable via the highest Pi level. Doctor check and `docs/thinking.md` updated to match.
+- Tool-loop provider rounds no longer poison `requestToHeadersMs` (header timing resets per provider request)
+- `/zai` and `/zai-usage` no longer crash when an assistant message lacks `usage`
+- Attempt records are written at `turn_end` even when `usage` is missing (aborts/errors)
+- Orphan `tool_execution_end` events no longer inflate tool counters
+- Pending (never-reached-provider) attempts get real request IDs before recording
+- Worker forbidden-key list now matches the client (`prompt`, `path`)
+- Local state dir / SQLite / consent / secret files use restrictive POSIX modes (`0o700` / `0o600`)
+- Transport error categories include HTTP status fallbacks when `errorCategory` is absent
+- Session shutdown resets correlation/attempt trackers
 
 ### Removed
 
@@ -26,6 +37,10 @@ All notable changes to `@onlinechefgroep/pi-zai` are documented in this file.
 - Client uploader with forbidden-field validation before POST
 - Anonymous daily rollup helpers and `telemetry_uploads` tracking in SQLite
 - Cloudflare Worker ingest scaffold (`worker/telemetry/`) → Analytics Engine `pi_zai_telemetry`
+
+### Fixed
+
+- GLM-5.2 `thinkingLevelMap`: `xhigh` now maps to Z.AI `reasoning_effort: "max"` instead of forwarding the raw Pi level string. Previously `xhigh` was `null` in the map but Pi-core still treated it as selectable (its `null !== undefined` special case), so selecting `xhigh` sent an undocumented `reasoning_effort="xhigh"` to Z.AI. The strongest Z.AI effort is now reachable via the highest Pi level. Doctor check and `docs/thinking.md` updated to match.
 
 ### Changed
 
@@ -122,6 +137,7 @@ All notable changes to `@onlinechefgroep/pi-zai` are documented in this file.
 
 - Credential source names only in diagnostics output; API key values never printed
 
+[0.3.0]: https://github.com/onlinechefgroep/pi-zai/releases/tag/v0.3.0
 [0.2.0]: https://github.com/onlinechefgroep/pi-zai/releases/tag/v0.2.0
 [0.1.1]: https://github.com/onlinechefgroep/pi-zai/releases/tag/v0.1.1
 [0.1.0]: https://github.com/onlinechefgroep/pi-zai/releases/tag/v0.1.0

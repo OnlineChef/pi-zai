@@ -23,15 +23,19 @@ export class ToolExecutionTracker {
     }
     complete(toolCallId, toolName, isError, now = Date.now()) {
         const started = this.inFlight.get(toolCallId);
+        // Ignore orphan ends (duplicate/out-of-order events) so they do not
+        // inflate turn or session counters with zero-duration phantoms.
+        if (!started)
+            return undefined;
         this.inFlight.delete(toolCallId);
-        const durationMs = Math.max(0, now - (started?.startedAt ?? now));
-        const resolvedName = started?.toolName || toolName;
+        const durationMs = Math.max(0, now - started.startedAt);
+        const resolvedName = started.toolName || toolName;
         const sample = {
             toolName: resolvedName,
             durationMs,
             isError,
             timestamp: now,
-            queryId: started?.queryId,
+            queryId: started.queryId,
         };
         this.executions += 1;
         this.totalMs += durationMs;

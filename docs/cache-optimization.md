@@ -132,8 +132,8 @@ Live A/B run via `npm run benchmark:cache-affinity` (Z.AI Coding Plan endpoint).
 
 | Mode | Median | Aggregate | Avg latency | Errors |
 |------|--------|-----------|-------------|--------|
-| **stable** (fixed `X-Session-Id`, pi-zai default) | 97.9% | 97.9% | 3100 ms | 0 |
-| **none** (no `X-Session-Id`, baseline pi) | 98.6% | 98.6% | 4543 ms | 0 |
+| **stable** (fixed `X-Session-Id`; enable via `sessionAffinity: experimental`) | 97.9% | 97.9% | 3100 ms | 0 |
+| **none** (no `X-Session-Id`, pi-zai default) | 98.6% | 98.6% | 4543 ms | 0 |
 | **rotating** (new `X-Session-Id` every turn) | 98.8% | 98.8% | 2357 ms | 0 |
 
 Per-trial medians: stable 97.9%, 97.9%; none 98.8%, 98.4%; rotating 98.8%, 98.8%.

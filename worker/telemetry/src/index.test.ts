@@ -94,6 +94,15 @@ describe("telemetry worker limits", () => {
 		).toBe("invalid or negative counts");
 	});
 
+	it("rejects forbidden prompt and path fields (parity with client)", () => {
+		expect(validateBody({ ...validBody, prompt: "secret" })).toContain(
+			"forbidden field",
+		);
+		expect(validateBody({ ...validBody, path: "/home/user" })).toContain(
+			"forbidden field",
+		);
+	});
+
 	it("enforces a per-client request rate limit via local fallback", () => {
 		resetRateLimitState();
 		const now = Date.now();

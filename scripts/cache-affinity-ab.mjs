@@ -2,11 +2,11 @@
 /**
  * Live A/B benchmark: X-Session-Id cache affinity on Z.AI Coding Plan.
  *
- * Usage (from packages/pi-zai after build):
+ * Usage (from repo root after build):
  *   npm run benchmark:cache-affinity
  *
  * Env:
- *   ZAI_API_KEY / ZAI_CODING_API_KEY  (required)
+ *   ZAI_API_KEY  (required)
  *   PI_ZAI_AB_TRIALS=5                trials per mode (default 5)
  *   PI_ZAI_AB_TURNS=6                 turns per trial (default 6)
  *   PI_ZAI_AB_MODEL=glm-4.6           model id

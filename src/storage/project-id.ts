@@ -28,6 +28,11 @@ function ensureSecretDir(): void {
 export function loadOrCreateLocalSecret(): Buffer {
 	const path = localSecretPath();
 	if (existsSync(path)) {
+		try {
+			chmodSync(path, 0o600);
+		} catch {
+			// Best-effort harden existing secrets.
+		}
 		const secret = readFileSync(path);
 		if (secret.length >= SECRET_BYTES) {
 			return secret.subarray(0, SECRET_BYTES);
@@ -39,7 +44,9 @@ export function loadOrCreateLocalSecret(): Buffer {
 	writeFileSync(path, secret, { mode: 0o600 });
 	try {
 		chmodSync(path, 0o600);
-	} catch {}
+	} catch {
+		// Best-effort on platforms that ignore POSIX modes.
+	}
 	return secret;
 }
 

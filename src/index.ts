@@ -160,14 +160,26 @@ function classifyTransportError(
 }
 
 function ensureAttemptTrackingForTurnEnd(): void {
-	if (getAttemptTracker().hasInFlight()) return;
-	const { queryId, requestId, attempt } = getQueryCorrelation().nextAttempt();
-	getAttemptTracker().beginAttempt({
-		queryId,
-		requestId,
-		attempt,
-		payloadFingerprint: "no-before-provider-request",
-	});
+	const tracker = getAttemptTracker();
+	if (!tracker.hasInFlight()) {
+		const { queryId, requestId, attempt } = getQueryCorrelation().nextAttempt();
+		tracker.beginAttempt({
+			queryId,
+			requestId,
+			attempt,
+			payloadFingerprint: "no-before-provider-request",
+		});
+		return;
+	}
+	// Turn started but never reached the provider — replace pending placeholders.
+	if (tracker.isPending()) {
+		const { requestId, attempt } = getQueryCorrelation().nextAttempt();
+		tracker.armProviderAttempt({
+			requestId,
+			attempt,
+			payloadFingerprint: "no-before-provider-request",
+		});
+	}
 }
 
 async function ensureMetricsStorage(
@@ -232,6 +244,7 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 		resetCacheMetrics();
 		resetTpsMetrics();
 		resetToolMetrics();
+		resetCorrelationState();
 		sessionState.activeBenchmarkRunId = undefined;
 		setMetricsStorage(undefined);
 		clearZaiStatus(ctx);
@@ -333,10 +346,11 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 		if (
 			ctx.model &&
 			isZaiModel(ctx.model) &&
-			event.message.role === "assistant" &&
-			event.message.usage
+			event.message.role === "assistant"
 		) {
-			getCacheMetricsStore().record(ctx.model, event.message.usage);
+			if (event.message.usage) {
+				getCacheMetricsStore().record(ctx.model, event.message.usage);
+			}
 
 			const assistant = event.message as AssistantMessage;
 			const segment = getCacheMetricsStore().get()?.segment;

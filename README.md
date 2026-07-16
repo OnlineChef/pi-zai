@@ -36,7 +36,7 @@ Set credentials the Pi way (`/login`, `auth.json`, `models.json`, or `ZAI_API_KE
 | Area | What pi-zai adds |
 |------|------------------|
 | **Cache** | Segment fingerprints, hit ratio, compaction policy, optional `X-Session-Id` affinity |
-| **Thinking** | Maps Pi `off` / `high` / `max` → Z.AI payload via hooks (GLM-5.2) |
+| **Thinking** | Maps Pi `off` / `high` / `xhigh` → Z.AI payload via hooks (GLM-5.2; `xhigh` → `max`) |
 | **Quota & cost** | Coding Plan monitor + Platform cost estimates in `/zai-usage` |
 | **Resilience** | Doctor probes, retry guidance, connection-error hints |
 | **Local metrics** | Token/latency/error records in SQLite (`/zai-data`, `/zai-transport`) |
@@ -114,7 +114,7 @@ Switch: `/zai-endpoint coding|platform` or Pi model picker.
 ## Development
 
 ```bash
-cd packages/pi-zai && npm run build && npm test
+npm run build && npm test
 ```
 
 [Development guide](docs/development.md) · Peer: `@earendil-works/pi-coding-agent >= 0.80.0`

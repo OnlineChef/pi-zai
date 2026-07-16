@@ -31,6 +31,15 @@ export class AttemptTracker {
 		return this.inFlight !== undefined;
 	}
 
+	/** True when prepareQueryAttempt ran but no provider request armed yet. */
+	isPending(): boolean {
+		return (
+			this.inFlight !== undefined &&
+			(this.inFlight.attempt === 0 ||
+				this.inFlight.payloadFingerprint === "pending")
+		);
+	}
+
 	prepareQueryAttempt(queryId: string, now = Date.now()): void {
 		this.turnUsage = undefined;
 		this.inFlight = {
@@ -114,6 +123,8 @@ export class AttemptTracker {
 	}): void {
 		const previous = this.inFlight;
 		const now = input.now ?? Date.now();
+		// New provider request (retry or tool-loop round): reset header timing so
+		// requestToHeadersMs stays non-negative. Keep turn-level first-delta marks.
 		this.inFlight = {
 			queryId: input.queryId,
 			requestId: input.requestId,
@@ -121,7 +132,7 @@ export class AttemptTracker {
 			payloadFingerprint: input.payloadFingerprint,
 			queryStartedAt: previous?.queryStartedAt ?? now,
 			requestStartedAt: now,
-			headersReceivedAt: previous?.headersReceivedAt,
+			headersReceivedAt: undefined,
 			firstDeltaAt: previous?.firstDeltaAt,
 			firstToolDeltaAt: previous?.firstToolDeltaAt,
 			httpStatus: undefined,
@@ -177,17 +188,23 @@ export class AttemptTracker {
 		const endedAt = input.occurredAt ?? Date.now();
 		const requestToHeadersMs =
 			this.inFlight.headersReceivedAt !== undefined
-				? this.inFlight.headersReceivedAt - this.inFlight.requestStartedAt
+				? Math.max(
+						0,
+						this.inFlight.headersReceivedAt - this.inFlight.requestStartedAt,
+					)
 				: undefined;
 		const requestToFirstDeltaMs =
 			this.inFlight.firstDeltaAt !== undefined
-				? this.inFlight.firstDeltaAt - this.inFlight.queryStartedAt
+				? Math.max(0, this.inFlight.firstDeltaAt - this.inFlight.queryStartedAt)
 				: undefined;
 		const requestToFirstToolDeltaMs =
 			this.inFlight.firstToolDeltaAt !== undefined
-				? this.inFlight.firstToolDeltaAt - this.inFlight.queryStartedAt
+				? Math.max(
+						0,
+						this.inFlight.firstToolDeltaAt - this.inFlight.queryStartedAt,
+					)
 				: undefined;
-		const totalMs = endedAt - this.inFlight.queryStartedAt;
+		const totalMs = Math.max(0, endedAt - this.inFlight.queryStartedAt);
 		const usage = input.usage ?? this.getTurnUsage();
 
 		const record: ProviderAttemptRecord = {

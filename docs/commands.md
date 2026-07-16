@@ -1,6 +1,6 @@
 # Commands
 
-All commands require an active Z.AI model unless noted.
+Most status and privacy commands work without a Z.AI model selected. Commands that switch models, run network probes, or record cache metrics require an active Z.AI model (noted below).
 
 ## `/zai`
 
@@ -36,7 +36,7 @@ Implicit cache diagnostics.
 | Action | Description |
 |--------|-------------|
 | `status` (default) | Segment key, token breakdown, ratios, cost, recommendations |
-| `reset-stats` | Clear local telemetry; does not invalidate server cache |
+| `reset-stats` | Clear in-session cache metrics (not SQLite, not remote uploads); does not invalidate server cache |
 | `explain` | How Z.AI implicit caching works in Pi |
 
 ## `/zai-usage`
@@ -117,11 +117,11 @@ A0 is native Pi without pi-zai; use it as control outside this extension.
 
 ## Benchmark (live script)
 
-From `packages/pi-zai` after build:
+From the repo root after build:
 
 ```bash
 export ZAI_API_KEY='...'
 npm run benchmark:cache-affinity
 ```
 
-Compares warm-turn cache hit rate: stable `X-Session-Id` vs none vs rotating (anti-affinity control). Optional JSON via `PI_ZAI_AB_OUTPUT`.
+Compares warm-turn cache hit rate: stable `X-Session-Id` vs none vs rotating (anti-affinity control). Optional JSON via `PI_ZAI_AB_OUTPUT`. Dev-only `PI_ZAI_AB_*` vars configure this script; they are not runtime settings.

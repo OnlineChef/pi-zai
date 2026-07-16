@@ -31,10 +31,13 @@ export function summarizeTransportFromAttempts(records) {
     let toolDurationMsTotal = 0;
     let toolDurationSamples = 0;
     for (const record of records) {
-        if (!record.errorCategory)
+        const category = record.errorCategory ??
+            (record.httpStatus !== undefined && record.httpStatus >= 400
+                ? `http_${record.httpStatus}`
+                : undefined);
+        if (!category)
             continue;
-        errorCategories[record.errorCategory] =
-            (errorCategories[record.errorCategory] ?? 0) + 1;
+        errorCategories[category] = (errorCategories[category] ?? 0) + 1;
     }
     for (const record of records) {
         totalToolCalls += record.toolCallsInTurn ?? 0;
